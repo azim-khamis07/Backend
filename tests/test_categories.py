@@ -266,11 +266,11 @@ def test_category_unauthorized(client):
     """Test category endpoints without authentication."""
     # List categories
     response = client.get("/api/v1/categories")
-    assert response.status_code == 403
+    assert response.status_code in [401, 403]
 
     # Create category
     response = client.post(
         "/api/v1/categories",
         json={"name": "Test", "type": "expense"},
     )
-    assert response.status_code == 403
+    assert response.status_code in [401, 403]

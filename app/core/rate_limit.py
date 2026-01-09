@@ -15,10 +15,12 @@ settings = get_settings()
 logger = get_logger(__name__)
 
 # Initialize rate limiter
+# Disable in test environment
+_rate_limit_enabled = settings.RATE_LIMIT_ENABLED and not settings.is_test
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["1000/hour"] if settings.RATE_LIMIT_ENABLED else [],
-    storage_uri=settings.REDIS_URL if settings.RATE_LIMIT_ENABLED else "memory://",
+    default_limits=["1000/hour"] if _rate_limit_enabled else [],
+    storage_uri=settings.REDIS_URL if _rate_limit_enabled else "memory://",
 )
 
 
@@ -27,7 +29,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Apply rate limiting to requests."""
-        if not settings.RATE_LIMIT_ENABLED:
+        # Disable rate limiting in test environment
+        if not settings.RATE_LIMIT_ENABLED or settings.is_test:
             return await call_next(request)
 
         try:

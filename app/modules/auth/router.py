@@ -1,6 +1,6 @@
 """Authentication router endpoints."""
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -30,9 +30,15 @@ def get_auth_service(db: Session = Depends(get_db)) -> AuthService:
 
 
 def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> int:
     """Dependency to get current user ID from token."""
+    if credentials is None:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authenticated",
+        )
     token = credentials.credentials
     payload = decode_token(token, token_type="access")
     if not payload:

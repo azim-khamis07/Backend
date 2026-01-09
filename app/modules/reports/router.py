@@ -1,6 +1,6 @@
 """Report router endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.rate_limit import get_rate_limiter

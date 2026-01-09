@@ -42,6 +42,16 @@ def db_session() -> Session:
 @pytest.fixture(scope="function")
 def app(db_session: Session):
     """Create FastAPI app for testing."""
+    import os
+    
+    # Ensure test environment settings
+    os.environ.setdefault("ENVIRONMENT", "test")
+    os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+    
+    # Clear settings cache to reload with test values
+    from app.core.config import get_settings
+    get_settings.cache_clear()
+    
     app = create_app()
 
     # Override database dependency

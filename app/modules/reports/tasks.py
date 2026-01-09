@@ -1,6 +1,7 @@
 """Celery tasks for report generation."""
 
 import io
+import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 

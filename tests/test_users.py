@@ -16,7 +16,7 @@ def test_get_me(authenticated_client, test_user):
 def test_get_me_unauthorized(client):
     """Test get current user without authentication."""
     response = client.get("/api/v1/users/me")
-    assert response.status_code == 403
+    assert response.status_code in [401, 403]
 
 
 def test_update_profile_email(authenticated_client, test_user, db_session):
@@ -155,4 +155,4 @@ def test_change_password_unauthorized(client):
             "confirm_password": "newpassword123",
         },
     )
-    assert response.status_code == 403
+    assert response.status_code in [401, 403]

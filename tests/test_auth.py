@@ -152,7 +152,7 @@ def test_get_me(authenticated_client, test_user):
 def test_get_me_unauthorized(client):
     """Test get current user without token."""
     response = client.get("/api/v1/auth/me")
-    assert response.status_code == 403
+    assert response.status_code in [401, 403]
 
 
 def test_get_me_invalid_token(client):

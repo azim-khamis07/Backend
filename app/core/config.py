@@ -15,6 +15,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        env_parse_none_str="false",
     )
 
     # Application
@@ -103,6 +104,11 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Check if running in development."""
         return self.ENVIRONMENT == "development"
+
+    @property
+    def is_test(self) -> bool:
+        """Check if running in test environment."""
+        return self.ENVIRONMENT == "test"
 
 
 @lru_cache()

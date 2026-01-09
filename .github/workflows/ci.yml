@@ -127,6 +127,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci-min-32-chars-long
           ENVIRONMENT: test
+          RATE_LIMIT_ENABLED: "false"
         run: |
           pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-report=html -v
       
