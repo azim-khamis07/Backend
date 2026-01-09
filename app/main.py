@@ -2,12 +2,19 @@
 
 from contextlib import asynccontextmanager
 
-import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
+# Optional Sentry SDK import (only available in production dependencies)
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
 
 from app.core.config import get_settings
 from app.core.exceptions import (
@@ -46,8 +53,8 @@ setup_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    # Initialize Sentry if DSN is provided
-    if settings.SENTRY_DSN:
+    # Initialize Sentry if DSN is provided and sentry_sdk is available
+    if settings.SENTRY_DSN and SENTRY_AVAILABLE:
         sentry_sdk.init(
             dsn=settings.SENTRY_DSN,
             environment=settings.SENTRY_ENVIRONMENT,
@@ -59,6 +66,12 @@ async def lifespan(app: FastAPI):
         )
         logger = app.state.logger
         logger.info("Sentry initialized", extra={"environment": settings.SENTRY_ENVIRONMENT})
+    elif settings.SENTRY_DSN and not SENTRY_AVAILABLE:
+        logger = app.state.logger
+        logger.warning(
+            "Sentry DSN configured but sentry-sdk not installed. "
+            "Install with: pip install sentry-sdk[fastapi]"
+        )
 
     # Startup
     logger = app.state.logger
@@ -151,14 +164,14 @@ def create_app() -> FastAPI:
     async def health_check() -> dict:
         """
         Health check endpoint with comprehensive dependency status.
-        
+
         Returns:
             Health status with individual dependency checks
         """
         from fastapi import status as http_status
         from fastapi.responses import JSONResponse
         from sqlalchemy import text
-        
+
         from app.db.session import engine
         from app.infra.s3 import S3Service
 
@@ -179,7 +192,7 @@ def create_app() -> FastAPI:
         except Exception as e:
             db_status = "unhealthy"
             db_error = str(e)
-        
+
         status_data["dependencies"]["database"] = {
             "status": db_status,
             "error": db_error if db_error else None,
@@ -197,7 +210,7 @@ def create_app() -> FastAPI:
         except Exception as e:
             redis_status = "unhealthy"
             redis_error = str(e)
-        
+
         status_data["dependencies"]["redis"] = {
             "status": redis_status,
             "error": redis_error if redis_error else None,
@@ -224,7 +237,7 @@ def create_app() -> FastAPI:
             except Exception as e:
                 s3_status = "unhealthy"
                 s3_error = str(e)
-        
+
         status_data["dependencies"]["s3"] = {
             "status": s3_status,
             "error": s3_error if s3_error else None,
@@ -233,7 +246,7 @@ def create_app() -> FastAPI:
         # Determine overall status
         critical_deps = [db_status]
         optional_deps = [redis_status, s3_status]
-        
+
         if all(status == "healthy" for status in critical_deps):
             if all(status in ("healthy", "not_configured") for status in optional_deps):
                 overall_status = "healthy"

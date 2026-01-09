@@ -57,12 +57,12 @@ class ReceiptService:
         # Check content type
         if not content_type:
             raise ValidationError("Content type is required")
-        
+
         # Normalize content type (handle variations like image/jpg vs image/jpeg)
         content_type_lower = content_type.lower()
         if content_type_lower == "image/jpg":
             content_type_lower = "image/jpeg"
-        
+
         if content_type_lower not in ALLOWED_CONTENT_TYPES:
             raise ValidationError(
                 f"Invalid file type '{content_type}'. Allowed types: {', '.join(sorted(ALLOWED_CONTENT_TYPES))}"
@@ -94,7 +94,7 @@ class ReceiptService:
                 raise ValidationError(
                     f"Invalid file extension '{file_ext}'. Allowed extensions: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
                 )
-            
+
             # Additional validation: check if extension matches content type
             extension_to_mime = {
                 ".jpg": "image/jpeg",
@@ -121,7 +121,7 @@ class ReceiptService:
             file.seek(0)
             header = file.read(12)
             file.seek(0)
-            
+
             # Check for common image file signatures
             is_valid_image = False
             if content_type_lower == "image/jpeg":
@@ -132,7 +132,7 @@ class ReceiptService:
                 is_valid_image = header[:6] in (b"GIF87a", b"GIF89a")
             elif content_type_lower == "image/webp":
                 is_valid_image = header[8:12] == b"WEBP"
-            
+
             if not is_valid_image:
                 raise ValidationError(
                     f"File content does not match declared type '{content_type}'. "

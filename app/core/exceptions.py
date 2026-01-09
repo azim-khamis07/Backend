@@ -30,15 +30,15 @@ class NotFoundError(BaseAPIException):
     """Resource not found exception."""
 
     def __init__(
-        self, 
-        resource: str = "Resource", 
+        self,
+        resource: str = "Resource",
         resource_id: Optional[Any] = None,
         detail: Optional[Any] = None,
-        context: Optional[dict] = None
+        context: Optional[dict] = None,
     ) -> None:
         """
         Initialize NotFoundError.
-        
+
         Args:
             resource: Resource name (e.g., "Transaction", "Category")
             resource_id: Optional resource ID that was not found
@@ -48,13 +48,13 @@ class NotFoundError(BaseAPIException):
         message = f"{resource} not found"
         if resource_id is not None:
             message = f"{resource} with ID {resource_id} not found"
-        
+
         error_detail = detail or {}
         if context:
             error_detail.update(context)
         if resource_id is not None:
             error_detail["resource_id"] = resource_id
-        
+
         super().__init__(
             message=message,
             status_code=status.HTTP_404_NOT_FOUND,
@@ -65,10 +65,12 @@ class NotFoundError(BaseAPIException):
 class ValidationError(BaseAPIException):
     """Validation error exception."""
 
-    def __init__(self, message: str, detail: Optional[Any] = None, context: Optional[dict] = None) -> None:
+    def __init__(
+        self, message: str, detail: Optional[Any] = None, context: Optional[dict] = None
+    ) -> None:
         """
         Initialize ValidationError.
-        
+
         Args:
             message: Error message
             detail: Optional additional detail
@@ -77,7 +79,7 @@ class ValidationError(BaseAPIException):
         error_detail = detail or {}
         if context:
             error_detail.update(context)
-        
+
         super().__init__(
             message=message,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

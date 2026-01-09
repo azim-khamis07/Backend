@@ -53,10 +53,10 @@ def app(db_session: Session):
     import app.core.rate_limit as rate_limit_module
 
     get_settings.cache_clear()
-    
+
     # Reset limiter to None to force re-initialization with test settings
     rate_limit_module._limiter = None
-    
+
     # Rate limiting is automatically disabled in test environment
     # via get_rate_limiter() which checks settings.is_test
 

@@ -141,9 +141,7 @@ class TransactionService:
         if category_id:
             if not self.repo.verify_category_ownership(category_id, user_id):
                 raise NotFoundError(
-                    resource="Category",
-                    resource_id=category_id,
-                    context={"user_id": user_id}
+                    resource="Category", resource_id=category_id, context={"user_id": user_id}
                 )
 
         # Create transaction within a transaction boundary
@@ -213,12 +211,10 @@ class TransactionService:
             ValidationError: If validation fails
         """
         # Get transaction
-        transaction = self.repo.get_by_id(transaction_id, user_id)
-        if not transaction:
+        transaction_obj = self.repo.get_by_id(transaction_id, user_id)
+        if not transaction_obj:
             raise NotFoundError(
-                resource="Transaction",
-                resource_id=transaction_id,
-                context={"user_id": user_id}
+                resource="Transaction", resource_id=transaction_id, context={"user_id": user_id}
             )
 
         # Validate and update type
@@ -226,7 +222,7 @@ class TransactionService:
             type_lower = type.lower()
             if type_lower not in ("expense", "income"):
                 raise ValidationError("Transaction type must be 'expense' or 'income'")
-            transaction.type = type_lower
+            transaction_obj.type = type_lower
 
         # Validate and update date
         if occurred_at is not None:
@@ -235,35 +231,33 @@ class TransactionService:
                 occurred_at = occurred_at.replace(tzinfo=timezone.utc)
 
             # Validate expense date
-            tx_type = type.lower() if type else transaction.type
+            tx_type = type.lower() if type else transaction_obj.type
             if tx_type == "expense":
                 now = datetime.now(timezone.utc)
                 if occurred_at > now:
                     raise ValidationError("Expense transactions cannot be in the future")
-            transaction.occurred_at = occurred_at
+            transaction_obj.occurred_at = occurred_at
 
         # Validate and update category
         if category_id is not None:
-            if category_id != transaction.category_id:  # Only check if changing
+            if category_id != transaction_obj.category_id:  # Only check if changing
                 if not self.repo.verify_category_ownership(category_id, user_id):
                     raise NotFoundError(
-                        resource="Category",
-                        resource_id=category_id,
-                        context={"user_id": user_id}
+                        resource="Category", resource_id=category_id, context={"user_id": user_id}
                     )
-            transaction.category_id = category_id
+            transaction_obj.category_id = category_id
 
         # Update other fields
         if amount is not None:
-            transaction.amount = amount
+            transaction_obj.amount = amount
         if note is not None:
-            transaction.note = note
+            transaction_obj.note = note
         if tags is not None:
-            transaction.tags = tags
+            transaction_obj.tags = tags
 
         # Save changes within a transaction boundary
         with transaction(db):
-            transaction = self.repo.update(transaction)
+            transaction_obj = self.repo.update(transaction_obj)
 
         logger.info(
             "Transaction updated", extra={"transaction_id": transaction_id, "user_id": user_id}
@@ -279,7 +273,7 @@ class TransactionService:
         ]
         cache_service.invalidate_patterns(cache_patterns)
 
-        return self._transaction_to_dict(transaction)
+        return self._transaction_to_dict(transaction_obj)
 
     def delete_transaction(self, db: Session, transaction_id: int, user_id: int) -> dict:
         """
@@ -300,9 +294,7 @@ class TransactionService:
         transaction_obj = self.repo.get_by_id(transaction_id, user_id)
         if not transaction_obj:
             raise NotFoundError(
-                resource="Transaction",
-                resource_id=transaction_id,
-                context={"user_id": user_id}
+                resource="Transaction", resource_id=transaction_id, context={"user_id": user_id}
             )
 
         # Delete transaction within a transaction boundary

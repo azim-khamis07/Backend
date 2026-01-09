@@ -34,10 +34,13 @@ def test_health_check_detailed(client: TestClient):
     assert response.status_code == 200
     data = response.json()
     assert "status" in data
-    assert "redis" in data
-    assert "database" in data
+    assert "dependencies" in data
+    assert "redis" in data["dependencies"]
+    assert "database" in data["dependencies"]
+    assert "s3" in data["dependencies"]
     assert "service" in data
     assert "version" in data
+    assert "environment" in data
 
 
 def test_rate_limiting_registration(authenticated_client: TestClient):

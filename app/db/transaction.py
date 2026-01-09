@@ -14,21 +14,21 @@ logger = get_logger(__name__)
 def transaction(db: Session) -> Generator[Session, None, None]:
     """
     Context manager for database transactions.
-    
+
     Automatically commits on success, rolls back on exception.
-    
+
     Usage:
         with transaction(db) as session:
             # Perform database operations
             session.add(obj)
             # Transaction commits automatically on exit
-    
+
     Args:
         db: Database session
-        
+
     Yields:
         Session: Database session (same as input)
-        
+
     Raises:
         Exception: Any exception raised within the context will trigger rollback
     """
@@ -44,4 +44,3 @@ def transaction(db: Session) -> Generator[Session, None, None]:
             exc_info=True,
         )
         raise
-

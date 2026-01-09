@@ -94,10 +94,10 @@ class CacheService:
     def invalidate_patterns(self, patterns: list[str]) -> int:
         """
         Invalidate multiple cache patterns.
-        
+
         Args:
             patterns: List of cache key patterns (supports wildcards)
-            
+
         Returns:
             Total number of keys deleted
         """
@@ -107,8 +107,7 @@ class CacheService:
             total_deleted += deleted
             if deleted > 0:
                 logger.debug(
-                    "Cache pattern invalidated",
-                    extra={"pattern": pattern, "keys_deleted": deleted}
+                    "Cache pattern invalidated", extra={"pattern": pattern, "keys_deleted": deleted}
                 )
         return total_deleted
 
