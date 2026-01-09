@@ -131,6 +131,7 @@ module "ecs" {
   app_cpu             = 512  # 0.5 vCPU for dev
   app_memory          = 1024  # 1 GB for dev
   desired_count       = 1  # Single instance for dev
+  environment         = "development"  # Set environment to development for dev
   
   # Environment variables
   database_url        = "postgresql://${var.db_username}:${var.db_password}@${module.rds.endpoint}:5432/${var.db_name}"

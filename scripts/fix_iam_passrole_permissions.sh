@@ -54,7 +54,7 @@ POLICY_NAME="${GITHUB_ACTIONS_USER_NAME}-ecs-passrole-policy"
 
 echo "📝 Creating IAM policy for PassRole permissions..."
 
-# Create policy document
+# Create policy document with explicit role ARNs for all environments
 cat > /tmp/passrole-policy.json <<EOF
 {
   "Version": "2012-10-17",
@@ -64,8 +64,12 @@ cat > /tmp/passrole-policy.json <<EOF
       "Effect": "Allow",
       "Action": "iam:PassRole",
       "Resource": [
-        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/expense-tracker-ecs-*-ecs-task-role",
-        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/expense-tracker-ecs-*-ecs-execution-role"
+        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/expense-tracker-ecs-dev-ecs-task-role",
+        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/expense-tracker-ecs-dev-ecs-execution-role",
+        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/expense-tracker-ecs-staging-ecs-task-role",
+        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/expense-tracker-ecs-staging-ecs-execution-role",
+        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/expense-tracker-ecs-production-ecs-task-role",
+        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/expense-tracker-ecs-production-ecs-execution-role"
       ],
       "Condition": {
         "StringEquals": {
@@ -150,9 +154,13 @@ echo "   - Policy ARN: $POLICY_ARN"
 echo "   - Attached to: $GITHUB_ACTIONS_USER_ARN"
 echo ""
 echo "🔍 Permissions granted:"
-echo "   - iam:PassRole on expense-tracker-ecs-*-ecs-task-role"
-echo "   - iam:PassRole on expense-tracker-ecs-*-ecs-execution-role"
-echo "   - Only when passing to: ecs-tasks.amazonaws.com"
+echo "   - iam:PassRole on expense-tracker-ecs-dev-ecs-task-role"
+echo "   - iam:PassRole on expense-tracker-ecs-dev-ecs-execution-role"
+echo "   - iam:PassRole on expense-tracker-ecs-staging-ecs-task-role"
+echo "   - iam:PassRole on expense-tracker-ecs-staging-ecs-execution-role"
+echo "   - iam:PassRole on expense-tracker-ecs-production-ecs-task-role"
+echo "   - iam:PassRole on expense-tracker-ecs-production-ecs-execution-role"
+echo "   - Condition: Only when passing to: ecs-tasks.amazonaws.com"
 echo ""
 echo "🚀 You can now retry the ECS deployment!"
 

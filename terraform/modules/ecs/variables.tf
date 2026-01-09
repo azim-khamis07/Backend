@@ -108,3 +108,9 @@ variable "tags" {
   default     = {}
 }
 
+variable "environment" {
+  description = "Environment name (dev, staging, production)"
+  type        = string
+  default     = "production"
+}
+

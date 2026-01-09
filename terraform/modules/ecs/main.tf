@@ -144,7 +144,7 @@ resource "aws_ecs_task_definition" "main" {
       environment = [
         {
           name  = "ENVIRONMENT"
-          value = "production"
+          value = var.environment
         },
         {
           name  = "DEBUG"
@@ -192,9 +192,9 @@ resource "aws_ecs_task_definition" "main" {
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
         interval    = 30
-        timeout     = 5
+        timeout     = 10
         retries     = 3
-        startPeriod = 60
+        startPeriod = 120
       }
     }
   ])
@@ -236,7 +236,7 @@ resource "aws_ecs_service" "main" {
 
   # Note: deployment_configuration block not supported in this provider version
   # Using default deployment settings
-  health_check_grace_period_seconds = 60
+  health_check_grace_period_seconds = 120
 
   tags = merge(var.tags, {
     Name = "${var.tags.Name}-service"
