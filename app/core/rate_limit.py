@@ -29,7 +29,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         """Apply rate limiting to requests."""
         # Check settings dynamically (not cached) to support test environment
         settings = get_settings()
-        
+
         # Disable rate limiting in test environment or if explicitly disabled
         if not settings.RATE_LIMIT_ENABLED or settings.is_test:
             return await call_next(request)

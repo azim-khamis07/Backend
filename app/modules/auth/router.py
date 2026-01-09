@@ -8,6 +8,7 @@ from app.core.exceptions import AuthenticationError
 from app.core.rate_limit import get_rate_limiter
 from app.core.security import decode_token
 from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from app.modules.auth.repo import AuthRepository
 from app.modules.auth.schemas import (
     RefreshTokenRequest,
@@ -34,7 +35,6 @@ def get_current_user_id(
 ) -> int:
     """Dependency to get current user ID from token."""
     if credentials is None:
-        from fastapi import HTTPException
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authenticated",

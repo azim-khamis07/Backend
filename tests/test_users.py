@@ -61,7 +61,6 @@ def test_update_profile_duplicate_email(client, db_session):
     db_session.commit()
 
     # Create test user first
-    from app.core.security import get_password_hash
     test_user = User(
         email="test@example.com",
         password_hash=get_password_hash("testpassword123"),
