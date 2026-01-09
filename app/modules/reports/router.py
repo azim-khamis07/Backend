@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
-from app.core.rate_limit import conditional_rate_limit, get_rate_limiter
+from app.core.rate_limit import conditional_rate_limit
 from app.db.session import get_db
 from app.modules.auth.router import get_current_user_id
 from app.modules.reports.repo import ReportRepository
