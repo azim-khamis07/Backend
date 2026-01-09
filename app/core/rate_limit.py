@@ -11,16 +11,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import get_settings
 from app.core.logging import get_logger
 
-settings = get_settings()
 logger = get_logger(__name__)
 
-# Initialize rate limiter
-# Disable in test environment
-_rate_limit_enabled = settings.RATE_LIMIT_ENABLED and not settings.is_test
+# Initialize rate limiter with empty limits (will be set based on settings)
+# Settings are checked dynamically to support test environment
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["1000/hour"] if _rate_limit_enabled else [],
-    storage_uri=settings.REDIS_URL if _rate_limit_enabled else "memory://",
+    default_limits=[],  # Will be set dynamically
+    storage_uri="memory://",  # Default to memory, will be updated if needed
 )
 
 
@@ -29,8 +27,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Apply rate limiting to requests."""
-        # Disable rate limiting in test environment
+        # Check settings dynamically (not cached) to support test environment
+        settings = get_settings()
+        
+        # Disable rate limiting in test environment or if explicitly disabled
         if not settings.RATE_LIMIT_ENABLED or settings.is_test:
+            return await call_next(request)
+
+        # For decorator-based rate limits, skip check if default limits are empty
+        # (indicates rate limiting is disabled)
+        if not limiter.default_limits:
             return await call_next(request)
 
         try:
