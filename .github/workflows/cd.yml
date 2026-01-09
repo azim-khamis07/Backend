@@ -167,12 +167,42 @@ jobs:
       - name: Set image URI for ECS deployment
         id: set-ecs-image
         run: |
+          echo "Debug: Checking build-and-push outputs..."
+          echo "image_uri from job: ${{ needs.build-and-push.outputs.image_uri }}"
+          echo "ecr_registry from job: ${{ needs.build-and-push.outputs.ecr_registry }}"
+          echo "ecr_repository from job: ${{ needs.build-and-push.outputs.ecr_repository }}"
+          echo "commit SHA: ${{ github.sha }}"
+          
+          # Try to get image URI from job output
           IMAGE_URI="${{ needs.build-and-push.outputs.image_uri }}"
-          if [ -z "$IMAGE_URI" ]; then
-            # Fallback: construct image URI if output is empty
-            IMAGE_URI="${{ needs.build-and-push.outputs.ecr_registry }}/${{ needs.build-and-push.outputs.ecr_repository }}:${{ github.sha }}"
+          
+          # If empty, construct from components
+          if [ -z "$IMAGE_URI" ] || [ "$IMAGE_URI" == "" ]; then
+            echo "Job output image_uri is empty, constructing from components..."
+            REGISTRY="${{ needs.build-and-push.outputs.ecr_registry }}"
+            REPO="${{ needs.build-and-push.outputs.ecr_repository }}"
+            SHA="${{ github.sha }}"
+            
+            if [ -n "$REGISTRY" ] && [ -n "$REPO" ] && [ -n "$SHA" ]; then
+              IMAGE_URI="${REGISTRY}/${REPO}:${SHA}"
+              echo "Constructed image URI: $IMAGE_URI"
+            else
+              # Last resort: get registry from ECR login and construct
+              echo "Getting registry from ECR login..."
+              REGISTRY=$(echo "${{ steps.login-ecr.outputs.registry }}" || echo "")
+              REPO="${{ needs.determine-environment.outputs.ecr_repository }}"
+              SHA="${{ github.sha }}"
+              IMAGE_URI="${REGISTRY}/${REPO}:${SHA}"
+              echo "Final constructed image URI: $IMAGE_URI"
+            fi
           fi
-          echo "Using image URI: $IMAGE_URI"
+          
+          if [ -z "$IMAGE_URI" ] || [ "$IMAGE_URI" == "" ]; then
+            echo "❌ ERROR: Could not determine image URI!"
+            exit 1
+          fi
+          
+          echo "✅ Using image URI: $IMAGE_URI"
           echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
       
       - name: Fill in the new image ID in the Amazon ECS task definition
