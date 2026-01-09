@@ -50,8 +50,16 @@ def app(db_session: Session):
 
     # Clear settings cache to reload with test values
     from app.core.config import get_settings
+    from app.core.rate_limit import limiter
 
     get_settings.cache_clear()
+
+    # Disable limiter globally for tests to avoid rate limit state persistence
+    try:
+        # Disable the limiter for tests
+        limiter.enabled = False
+    except Exception:
+        pass  # Ignore errors if enabled attribute doesn't exist
 
     app = create_app()
 

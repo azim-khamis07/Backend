@@ -91,6 +91,13 @@ def create_app() -> FastAPI:
         version=settings.APP_VERSION,
         debug=settings.DEBUG,
         lifespan=lifespan,
+        swagger_ui_parameters={
+            "persistAuthorization": True,
+            "displayRequestDuration": True,
+        },
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
     )
 
     # Store logger in app state

@@ -99,9 +99,11 @@ def test_get_category_breakdown(authenticated_client, test_user, db_session):
     db_session.commit()
 
     # Get category breakdown
-    # Format dates for URL query parameters (use Z for UTC instead of +00:00)
-    start = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Expand date range slightly to ensure transactions are included
+    from datetime import timedelta
+
+    start = (now - timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = (now + timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     response = authenticated_client.get(
         f"/api/v1/analytics/by-category?start_date={start}&end_date={end}"
     )
@@ -110,7 +112,8 @@ def test_get_category_breakdown(authenticated_client, test_user, db_session):
     assert "total_income" in data
     assert "total_expenses" in data
     assert "by_category" in data
-    assert len(data["by_category"]) >= 1
+    # At least one category should be in the breakdown (tx1 has a category)
+    assert len(data["by_category"]) >= 1, f"Expected at least 1 category, got {data['by_category']}"
 
 
 def test_get_cashflow(authenticated_client, test_user, db_session):
@@ -135,9 +138,11 @@ def test_get_cashflow(authenticated_client, test_user, db_session):
     db_session.commit()
 
     # Get cashflow
-    # Format dates for URL query parameters (use Z for UTC instead of +00:00)
-    start = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Expand date range slightly to ensure transactions are included
+    from datetime import timedelta
+
+    start = (now - timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = (now + timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     response = authenticated_client.get(
         f"/api/v1/analytics/cashflow?start_date={start}&end_date={end}&interval=day"
     )
@@ -164,9 +169,11 @@ def test_get_cashflow_week_interval(authenticated_client, test_user, db_session)
     db_session.add(tx)
     db_session.commit()
 
-    # Format dates for URL query parameters (use Z for UTC instead of +00:00)
-    start = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Expand date range slightly to ensure transactions are included
+    from datetime import timedelta
+
+    start = (now - timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = (now + timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     response = authenticated_client.get(
         f"/api/v1/analytics/cashflow?start_date={start}&end_date={end}&interval=week"
     )
@@ -189,9 +196,11 @@ def test_get_cashflow_month_interval(authenticated_client, test_user, db_session
     db_session.add(tx)
     db_session.commit()
 
-    # Format dates for URL query parameters (use Z for UTC instead of +00:00)
-    start = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Expand date range slightly to ensure transactions are included
+    from datetime import timedelta
+
+    start = (now - timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = (now + timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     response = authenticated_client.get(
         f"/api/v1/analytics/cashflow?start_date={start}&end_date={end}&interval=month"
     )

@@ -268,11 +268,11 @@ def test_list_transactions_cursor_pagination(authenticated_client, test_user, db
     """Test list transactions with cursor pagination."""
     from app.models.transaction import Transaction
 
-    # Create multiple transactions
+    # Create multiple transactions (start from 1 to avoid amount=0 which violates CHECK constraint)
     transactions = [
         Transaction(
             user_id=test_user.id,
-            amount=Decimal(f"{i * 10}.00"),
+            amount=Decimal(f"{(i + 1) * 10}.00"),
             type="expense",
             occurred_at=datetime.now(timezone.utc),
         )

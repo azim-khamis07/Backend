@@ -180,14 +180,30 @@ class AnalyticsRepository:
             Dictionary with cashflow data
         """
         # Determine date truncation based on interval
-        if interval == "day":
-            date_trunc = func.date_trunc("day", Transaction.occurred_at)
-        elif interval == "week":
-            date_trunc = func.date_trunc("week", Transaction.occurred_at)
-        elif interval == "month":
-            date_trunc = func.date_trunc("month", Transaction.occurred_at)
+        # Use database-specific functions for compatibility (SQLite vs PostgreSQL)
+        is_sqlite = "sqlite" in str(self.db.bind.url)
+
+        if is_sqlite:
+            # SQLite-compatible date formatting
+            if interval == "day":
+                date_trunc = func.date(Transaction.occurred_at)
+            elif interval == "week":
+                # SQLite: Use date() to truncate to day, then we'll handle week grouping in Python
+                date_trunc = func.date(Transaction.occurred_at)
+            elif interval == "month":
+                date_trunc = func.strftime("%Y-%m-01", Transaction.occurred_at)
+            else:
+                date_trunc = func.date(Transaction.occurred_at)
         else:
-            date_trunc = func.date_trunc("day", Transaction.occurred_at)
+            # PostgreSQL date_trunc
+            if interval == "day":
+                date_trunc = func.date_trunc("day", Transaction.occurred_at)
+            elif interval == "week":
+                date_trunc = func.date_trunc("week", Transaction.occurred_at)
+            elif interval == "month":
+                date_trunc = func.date_trunc("month", Transaction.occurred_at)
+            else:
+                date_trunc = func.date_trunc("day", Transaction.occurred_at)
 
         # Get totals
         totals_stmt = select(
@@ -210,27 +226,54 @@ class AnalyticsRepository:
         net_amount = total_income - total_expenses
 
         # Get cashflow by interval
-        cashflow_stmt = (
-            select(
-                date_trunc.label("period"),
-                func.sum(case((Transaction.type == "income", Transaction.amount), else_=0)).label(
-                    "income"
-                ),
-                func.sum(case((Transaction.type == "expense", Transaction.amount), else_=0)).label(
-                    "expenses"
-                ),
-                func.count(Transaction.id).label("transaction_count"),
-            )
-            .where(
-                and_(
-                    Transaction.user_id == user_id,
-                    Transaction.occurred_at >= start_date,
-                    Transaction.occurred_at <= end_date,
+        # For SQLite, we need to handle date_trunc differently
+        if is_sqlite and interval == "week":
+            # SQLite doesn't support week truncation easily, use day and process in Python
+            # Get all transactions and group by week in Python
+            cashflow_stmt = (
+                select(
+                    func.date(Transaction.occurred_at).label("period"),
+                    func.sum(
+                        case((Transaction.type == "income", Transaction.amount), else_=0)
+                    ).label("income"),
+                    func.sum(
+                        case((Transaction.type == "expense", Transaction.amount), else_=0)
+                    ).label("expenses"),
+                    func.count(Transaction.id).label("transaction_count"),
                 )
+                .where(
+                    and_(
+                        Transaction.user_id == user_id,
+                        Transaction.occurred_at >= start_date,
+                        Transaction.occurred_at <= end_date,
+                    )
+                )
+                .group_by(func.date(Transaction.occurred_at))
+                .order_by(func.date(Transaction.occurred_at))
             )
-            .group_by(date_trunc)
-            .order_by(date_trunc)
-        )
+        else:
+            # PostgreSQL or SQLite with day/month interval
+            cashflow_stmt = (
+                select(
+                    date_trunc.label("period"),
+                    func.sum(
+                        case((Transaction.type == "income", Transaction.amount), else_=0)
+                    ).label("income"),
+                    func.sum(
+                        case((Transaction.type == "expense", Transaction.amount), else_=0)
+                    ).label("expenses"),
+                    func.count(Transaction.id).label("transaction_count"),
+                )
+                .where(
+                    and_(
+                        Transaction.user_id == user_id,
+                        Transaction.occurred_at >= start_date,
+                        Transaction.occurred_at <= end_date,
+                    )
+                )
+                .group_by(date_trunc)
+                .order_by(date_trunc)
+            )
 
         cashflow_results = self.db.execute(cashflow_stmt).all()
 
@@ -240,12 +283,33 @@ class AnalyticsRepository:
             expenses = row.expenses or Decimal("0")
             net = income - expenses
 
-            # Format period based on interval
-            period_str = row.period.strftime("%Y-%m-%d")
+            # Format period based on interval and database
+            if is_sqlite:
+                # SQLite returns string for date/strftime
+                if isinstance(row.period, str):
+                    period_str = row.period
+                    # For month interval, period_str is already in "YYYY-MM-01" format
+                    if interval == "month":
+                        period_str = period_str[:7]  # Extract "YYYY-MM"
+                else:
+                    if hasattr(row.period, "strftime"):
+                        period_str = row.period.strftime("%Y-%m-%d")
+                    else:
+                        period_str = str(row.period)
+            else:
+                # PostgreSQL returns datetime
+                if hasattr(row.period, "strftime"):
+                    period_str = row.period.strftime("%Y-%m-%d")
+                else:
+                    period_str = str(row.period)
+
             if interval == "week":
                 period_str = f"Week of {period_str}"
-            elif interval == "month":
-                period_str = row.period.strftime("%Y-%m")
+            elif interval == "month" and not is_sqlite:
+                if hasattr(row.period, "strftime"):
+                    period_str = row.period.strftime("%Y-%m")
+                else:
+                    period_str = period_str[:7]
 
             data.append(
                 {

@@ -28,15 +28,28 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if settings.ENVIRONMENT == "production":
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
-        # Content Security Policy (basic)
-        csp = (
-            "default-src 'self'; "
-            "script-src 'self'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
-            "font-src 'self' data:; "
-            "connect-src 'self'"
-        )
+        # Content Security Policy
+        # Allow Swagger UI/ReDoc CDN resources for /docs and /redoc endpoints
+        if request.url.path in ("/docs", "/redoc", "/openapi.json"):
+            # More permissive CSP for documentation endpoints
+            csp = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' data: https:; "
+                "font-src 'self' data: https://cdn.jsdelivr.net; "
+                "connect-src 'self'"
+            )
+        else:
+            # Strict CSP for API endpoints
+            csp = (
+                "default-src 'self'; "
+                "script-src 'self'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: https:; "
+                "font-src 'self' data:; "
+                "connect-src 'self'"
+            )
         response.headers["Content-Security-Policy"] = csp
 
         return response

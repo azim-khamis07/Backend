@@ -147,7 +147,7 @@ def test_get_category_not_found(authenticated_client):
     assert response.status_code == 404
 
 
-def test_get_category_other_user(client, db_session):
+def test_get_category_other_user(client, db_session, test_user):
     """Test get category belonging to another user."""
     from app.core.security import get_password_hash
     from app.models.category import Category
@@ -165,12 +165,15 @@ def test_get_category_other_user(client, db_session):
     db_session.add(category)
     db_session.commit()
 
-    # Login as test_user
+    # Login as test_user (ensure user exists first)
     login_response = client.post(
         "/api/v1/auth/login",
         json={"email": "test@example.com", "password": "testpassword123"},
     )
-    token = login_response.json()["access_token"]
+    assert login_response.status_code == 200, f"Login failed: {login_response.text}"
+    login_data = login_response.json()
+    assert "access_token" in login_data, f"Missing access_token: {login_data}"
+    token = login_data["access_token"]
     client.headers = {"Authorization": f"Bearer {token}"}
 
     # Try to access other user's category
