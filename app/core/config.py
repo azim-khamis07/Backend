@@ -15,7 +15,6 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        env_parse_none_str="false",
     )
 
     # Application
@@ -39,7 +38,7 @@ class Settings(BaseSettings):
     )
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
-    DB_ECHO: bool = False
+    DB_ECHO: bool = Field(default=False)
 
     # Redis
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
