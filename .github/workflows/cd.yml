@@ -38,7 +38,7 @@ jobs:
           elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
             ENV="production"
           elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
-            ENV="staging"
+            ENV="dev"
           else
             ENV="dev"
           fi
