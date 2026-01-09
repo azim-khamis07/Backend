@@ -56,7 +56,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: determine-environment
     outputs:
-      image_uri: ${{ steps.build-image.outputs.image_uri }}
+      image_uri: ${{ steps.set-image-uri.outputs.image_uri }}
+      ecr_registry: ${{ steps.login-ecr.outputs.registry }}
+      ecr_repository: ${{ needs.determine-environment.outputs.ecr_repository }}
     
     steps:
       - name: Checkout code
@@ -94,10 +96,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
-      - name: Output image URI
+      - name: Set image URI output
+        id: set-image-uri
         run: |
-          echo "Image URI: ${{ steps.login-ecr.outputs.registry }}/${{ needs.determine-environment.outputs.ecr_repository }}:${{ github.sha }}"
-          echo "image_uri=${{ steps.login-ecr.outputs.registry }}/${{ needs.determine-environment.outputs.ecr_repository }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ needs.determine-environment.outputs.ecr_repository }}:${{ github.sha }}"
+          echo "Image URI: $IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
   deploy-infrastructure:
     name: Deploy Infrastructure (Terraform)
@@ -166,7 +170,7 @@ jobs:
         with:
           task-definition: task-definition.json
           container-name: api
-          image: ${{ needs.build-and-push.outputs.image_uri }}
+          image: ${{ needs.build-and-push.outputs.image_uri || format('{0}/{1}:{2}', needs.build-and-push.outputs.ecr_registry, needs.build-and-push.outputs.ecr_repository, github.sha) }}
       
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
