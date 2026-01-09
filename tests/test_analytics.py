@@ -99,8 +99,9 @@ def test_get_category_breakdown(authenticated_client, test_user, db_session):
     db_session.commit()
 
     # Get category breakdown
-    start = now.isoformat()
-    end = now.isoformat()
+    # Format dates for URL query parameters (use Z for UTC instead of +00:00)
+    start = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     response = authenticated_client.get(
         f"/api/v1/analytics/by-category?start_date={start}&end_date={end}"
     )
@@ -134,8 +135,9 @@ def test_get_cashflow(authenticated_client, test_user, db_session):
     db_session.commit()
 
     # Get cashflow
-    start = now.isoformat()
-    end = now.isoformat()
+    # Format dates for URL query parameters (use Z for UTC instead of +00:00)
+    start = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     response = authenticated_client.get(
         f"/api/v1/analytics/cashflow?start_date={start}&end_date={end}&interval=day"
     )
@@ -162,8 +164,9 @@ def test_get_cashflow_week_interval(authenticated_client, test_user, db_session)
     db_session.add(tx)
     db_session.commit()
 
-    start = now.isoformat()
-    end = now.isoformat()
+    # Format dates for URL query parameters (use Z for UTC instead of +00:00)
+    start = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     response = authenticated_client.get(
         f"/api/v1/analytics/cashflow?start_date={start}&end_date={end}&interval=week"
     )
@@ -186,8 +189,9 @@ def test_get_cashflow_month_interval(authenticated_client, test_user, db_session
     db_session.add(tx)
     db_session.commit()
 
-    start = now.isoformat()
-    end = now.isoformat()
+    # Format dates for URL query parameters (use Z for UTC instead of +00:00)
+    start = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     response = authenticated_client.get(
         f"/api/v1/analytics/cashflow?start_date={start}&end_date={end}&interval=month"
     )
@@ -252,8 +256,9 @@ def test_category_breakdown_uncategorized(authenticated_client, test_user, db_se
     db_session.add(tx)
     db_session.commit()
 
-    start = now.isoformat()
-    end = now.isoformat()
+    # Format dates for URL query parameters (use Z for UTC instead of +00:00)
+    start = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     response = authenticated_client.get(
         f"/api/v1/analytics/by-category?start_date={start}&end_date={end}"
     )

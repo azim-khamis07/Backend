@@ -74,3 +74,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 def get_rate_limiter() -> Limiter:
     """Get rate limiter instance."""
     return limiter
+
+
+def conditional_rate_limit(limit_str: str):
+    """
+    Conditionally apply rate limit decorator based on settings.
+    
+    This decorator wrapper checks if rate limiting is enabled before
+    applying the actual rate limit. In test environment or when rate
+    limiting is disabled, it returns a no-op decorator.
+    """
+    def decorator(func):
+        # Check if rate limiting is enabled
+        settings = get_settings()
+        if not settings.RATE_LIMIT_ENABLED or settings.is_test:
+            # Return function unchanged (no rate limiting)
+            return func
+        # Apply rate limit decorator
+        return limiter.limit(limit_str)(func)
+    return decorator

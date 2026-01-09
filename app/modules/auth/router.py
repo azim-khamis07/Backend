@@ -5,10 +5,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AuthenticationError
-from app.core.rate_limit import get_rate_limiter
+from app.core.rate_limit import conditional_rate_limit
 from app.core.security import decode_token
 from app.db.session import get_db
-from fastapi import APIRouter, Depends, HTTPException, Request, status
 from app.modules.auth.repo import AuthRepository
 from app.modules.auth.schemas import (
     RefreshTokenRequest,
@@ -21,7 +20,6 @@ from app.modules.auth.service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
-limiter = get_rate_limiter()
 
 
 def get_auth_service(db: Session = Depends(get_db)) -> AuthService:
@@ -47,7 +45,7 @@ def get_current_user_id(
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=dict)
-@limiter.limit("5/minute")  # Stricter limit for registration
+@conditional_rate_limit("5/minute")  # Stricter limit for registration
 async def register(
     request: Request,
     data: UserRegister,
@@ -64,7 +62,7 @@ async def register(
 
 
 @router.post("/login", response_model=dict)
-@limiter.limit("10/minute")  # Stricter limit for login
+@conditional_rate_limit("10/minute")  # Stricter limit for login
 async def login(
     request: Request,
     data: UserLogin,
