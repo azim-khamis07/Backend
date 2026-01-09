@@ -1,0 +1,231 @@
+name: CD
+
+on:
+  push:
+    branches: 
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+jobs:
+  determine-environment:
+    name: Determine Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      ecr_repository: ${{ steps.set-env.outputs.ecr_repository }}
+      ecs_cluster: ${{ steps.set-env.outputs.ecs_cluster }}
+      ecs_service: ${{ steps.set-env.outputs.ecs_service }}
+      ecs_task_definition: ${{ steps.set-env.outputs.ecs_task_definition }}
+    steps:
+      - name: Set environment based on branch or input
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            ENV="production"
+          elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            ENV="staging"
+          else
+            ENV="dev"
+          fi
+          
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "ecr_repository=expense-tracker-backend-$ENV" >> $GITHUB_OUTPUT
+          echo "ecs_cluster=expense-tracker-cluster-$ENV" >> $GITHUB_OUTPUT
+          echo "ecs_service=expense-tracker-api-$ENV" >> $GITHUB_OUTPUT
+          echo "ecs_task_definition=expense-tracker-api-$ENV" >> $GITHUB_OUTPUT
+          
+          echo "🚀 Deploying to: $ENV"
+
+  build-and-push:
+    name: Build and Push to ECR
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    outputs:
+      image_uri: ${{ steps.build-image.outputs.image_uri }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          ENVIRONMENT: ${{ needs.determine-environment.outputs.environment }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ needs.determine-environment.outputs.ecr_repository }}:${{ env.IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/${{ needs.determine-environment.outputs.ecr_repository }}:latest
+            ${{ env.ECR_REGISTRY }}/${{ needs.determine-environment.outputs.ecr_repository }}:${{ env.ENVIRONMENT }}-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Output image URI
+        run: |
+          echo "Image URI: ${{ steps.login-ecr.outputs.registry }}/${{ needs.determine-environment.outputs.ecr_repository }}:${{ github.sha }}"
+          echo "image_uri=${{ steps.login-ecr.outputs.registry }}/${{ needs.determine-environment.outputs.ecr_repository }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  deploy-infrastructure:
+    name: Deploy Infrastructure (Terraform)
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-and-push]
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[terraform]')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+      
+      - name: Terraform Init
+        working-directory: terraform/environments/${{ needs.determine-environment.outputs.environment }}
+        run: terraform init
+      
+      - name: Terraform Plan
+        working-directory: terraform/environments/${{ needs.determine-environment.outputs.environment }}
+        run: terraform plan -out=tfplan
+      
+      - name: Terraform Apply
+        working-directory: terraform/environments/${{ needs.determine-environment.outputs.environment }}
+        run: terraform apply -auto-approve tfplan
+
+  deploy-ecs:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-and-push]
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ needs.determine-environment.outputs.ecs_task_definition }} \
+            --query taskDefinition > task-definition.json || echo "{}" > task-definition.json
+      
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: api
+          image: ${{ needs.build-and-push.outputs.image_uri }}
+      
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ needs.determine-environment.outputs.ecs_service }}
+          cluster: ${{ needs.determine-environment.outputs.ecs_cluster }}
+          wait-for-service-stability: true
+      
+      - name: Verify deployment
+        run: |
+          echo "Waiting for service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster ${{ needs.determine-environment.outputs.ecs_cluster }} \
+            --services ${{ needs.determine-environment.outputs.ecs_service }}
+          echo "✅ Deployment to ${{ needs.determine-environment.outputs.environment }} successful!"
+
+  verify-deployment:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [determine-environment, deploy-ecs]
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Get ALB DNS name from Terraform
+        id: get-alb
+        working-directory: terraform/environments/${{ needs.determine-environment.outputs.environment }}
+        run: |
+          ALB_DNS=$(terraform output -raw alb_dns_name 2>/dev/null || echo "")
+          if [ -z "$ALB_DNS" ]; then
+            # Fallback: get from AWS directly
+            ALB_DNS=$(aws elbv2 describe-load-balancers \
+              --query "LoadBalancers[?contains(LoadBalancerName, '${{ needs.determine-environment.outputs.environment }}')].DNSName" \
+              --output text | head -1)
+          fi
+          echo "alb_dns=$ALB_DNS" >> $GITHUB_OUTPUT
+          echo "ALB DNS: $ALB_DNS"
+      
+      - name: Health check
+        run: |
+          if [ -z "${{ steps.get-alb.outputs.alb_dns }}" ]; then
+            echo "⚠️ ALB DNS not found, skipping health check"
+            exit 0
+          fi
+          
+          echo "Checking health endpoint..."
+          for i in {1..30}; do
+            if curl -f http://${{ steps.get-alb.outputs.alb_dns }}/health; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Waiting for service..."
+            sleep 10
+          done
+          echo "❌ Health check failed!"
+          exit 1
