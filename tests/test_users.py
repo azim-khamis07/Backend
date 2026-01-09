@@ -60,11 +60,23 @@ def test_update_profile_duplicate_email(client, db_session):
     db_session.add(user2)
     db_session.commit()
 
+    # Create test user first
+    from app.core.security import get_password_hash
+    test_user = User(
+        email="test@example.com",
+        password_hash=get_password_hash("testpassword123"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(test_user)
+    db_session.commit()
+
     # Login as first user
     login_response = client.post(
         "/api/v1/auth/login",
         json={"email": "test@example.com", "password": "testpassword123"},
     )
+    assert login_response.status_code == 200, f"Login failed: {login_response.text}"
     token = login_response.json()["access_token"]
     client.headers = {"Authorization": f"Bearer {token}"}
 

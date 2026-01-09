@@ -348,11 +348,22 @@ def test_get_transaction_other_user(client, db_session):
     db_session.add(transaction)
     db_session.commit()
 
+    # Create test user first
+    test_user = User(
+        email="test@example.com",
+        password_hash=get_password_hash("testpassword123"),
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(test_user)
+    db_session.commit()
+
     # Login as test_user
     login_response = client.post(
         "/api/v1/auth/login",
         json={"email": "test@example.com", "password": "testpassword123"},
     )
+    assert login_response.status_code == 200, f"Login failed: {login_response.text}"
     token = login_response.json()["access_token"]
     client.headers = {"Authorization": f"Bearer {token}"}
 
