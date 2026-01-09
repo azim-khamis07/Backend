@@ -32,6 +32,7 @@ def get_receipt_service(
 async def upload_receipt(
     transaction_id: int,
     file: UploadFile = File(..., description="Receipt file (image or PDF)"),
+    db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
     service: ReceiptService = Depends(get_receipt_service),
 ) -> ReceiptUploadResponse:
@@ -56,6 +57,7 @@ async def upload_receipt(
 
     # Upload receipt
     receipt_data = service.upload_receipt(
+        db=db,
         transaction_id=transaction_id,
         user_id=user_id,
         file=file.file,
@@ -101,6 +103,7 @@ async def get_receipt_url(
 @router.delete("/{transaction_id}/receipt", status_code=status.HTTP_200_OK)
 async def delete_receipt(
     transaction_id: int,
+    db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
     service: ReceiptService = Depends(get_receipt_service),
 ) -> dict:
@@ -112,5 +115,5 @@ async def delete_receipt(
     Returns:
         Success message
     """
-    result = service.delete_receipt(transaction_id=transaction_id, user_id=user_id)
+    result = service.delete_receipt(db, transaction_id, user_id)
     return result

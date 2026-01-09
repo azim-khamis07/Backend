@@ -89,6 +89,7 @@ async def get_transaction(
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=TransactionResponse)
 async def create_transaction(
     data: TransactionCreate,
+    db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
     service: TransactionService = Depends(get_transaction_service),
 ) -> TransactionResponse:
@@ -99,6 +100,7 @@ async def create_transaction(
         Created transaction data
     """
     transaction_data = service.create_transaction(
+        db=db,
         user_id=user_id,
         amount=data.amount,
         type=data.type,
@@ -114,6 +116,7 @@ async def create_transaction(
 async def update_transaction(
     transaction_id: int,
     data: TransactionUpdate,
+    db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
     service: TransactionService = Depends(get_transaction_service),
 ) -> TransactionResponse:
@@ -124,6 +127,7 @@ async def update_transaction(
         Updated transaction data
     """
     transaction_data = service.update_transaction(
+        db=db,
         transaction_id=transaction_id,
         user_id=user_id,
         amount=data.amount,
@@ -139,6 +143,7 @@ async def update_transaction(
 @router.delete("/{transaction_id}", status_code=status.HTTP_200_OK)
 async def delete_transaction(
     transaction_id: int,
+    db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
     service: TransactionService = Depends(get_transaction_service),
 ) -> dict:
@@ -148,5 +153,5 @@ async def delete_transaction(
     Returns:
         Success message
     """
-    result = service.delete_transaction(transaction_id, user_id)
+    result = service.delete_transaction(db, transaction_id, user_id)
     return result

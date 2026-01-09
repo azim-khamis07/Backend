@@ -29,22 +29,59 @@ class BaseAPIException(Exception):
 class NotFoundError(BaseAPIException):
     """Resource not found exception."""
 
-    def __init__(self, resource: str = "Resource", detail: Optional[Any] = None) -> None:
+    def __init__(
+        self, 
+        resource: str = "Resource", 
+        resource_id: Optional[Any] = None,
+        detail: Optional[Any] = None,
+        context: Optional[dict] = None
+    ) -> None:
+        """
+        Initialize NotFoundError.
+        
+        Args:
+            resource: Resource name (e.g., "Transaction", "Category")
+            resource_id: Optional resource ID that was not found
+            detail: Optional additional detail
+            context: Optional context dictionary for logging
+        """
+        message = f"{resource} not found"
+        if resource_id is not None:
+            message = f"{resource} with ID {resource_id} not found"
+        
+        error_detail = detail or {}
+        if context:
+            error_detail.update(context)
+        if resource_id is not None:
+            error_detail["resource_id"] = resource_id
+        
         super().__init__(
-            message=f"{resource} not found",
+            message=message,
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=detail,
+            detail=error_detail,
         )
 
 
 class ValidationError(BaseAPIException):
     """Validation error exception."""
 
-    def __init__(self, message: str, detail: Optional[Any] = None) -> None:
+    def __init__(self, message: str, detail: Optional[Any] = None, context: Optional[dict] = None) -> None:
+        """
+        Initialize ValidationError.
+        
+        Args:
+            message: Error message
+            detail: Optional additional detail
+            context: Optional context dictionary for logging
+        """
+        error_detail = detail or {}
+        if context:
+            error_detail.update(context)
+        
         super().__init__(
             message=message,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=detail,
+            detail=error_detail,
         )
 
 

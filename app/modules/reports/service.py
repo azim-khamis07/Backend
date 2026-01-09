@@ -2,8 +2,11 @@
 
 from datetime import datetime
 
+from sqlalchemy.orm import Session
+
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.logging import get_logger
+from app.db.transaction import transaction
 from app.infra.s3 import s3_service
 from app.modules.reports.repo import ReportRepository
 from app.modules.reports.tasks import generate_pdf_report_task
@@ -18,7 +21,7 @@ class ReportService:
         """Initialize service with repository."""
         self.repo = repo
 
-    def create_report_job(self, user_id: int, params: dict) -> dict:
+    def create_report_job(self, db: Session, user_id: int, params: dict) -> dict:
         """
         Create a report generation job.
 
@@ -49,10 +52,11 @@ class ReportService:
             if not provided_types.issubset(valid_types):
                 raise ValidationError("Transaction types must be 'expense' and/or 'income'")
 
-        # Create report job
-        job = self.repo.create(user_id=user_id, params_json=params)
+        # Create report job within a transaction
+        with transaction(db):
+            job = self.repo.create(user_id=user_id, params_json=params)
 
-        # Enqueue Celery task
+        # Enqueue Celery task (outside transaction to avoid blocking)
         try:
             generate_pdf_report_task.delay(job.id)
             logger.info(
@@ -61,7 +65,8 @@ class ReportService:
             )
         except Exception as e:
             # Mark job as failed if enqueue fails
-            self.repo.mark_failed(job.id, f"Failed to enqueue job: {str(e)}")
+            with transaction(db):
+                self.repo.mark_failed(job.id, f"Failed to enqueue job: {str(e)}")
             logger.error(
                 "Failed to enqueue report job",
                 extra={"job_id": job.id, "user_id": user_id, "error": str(e)},

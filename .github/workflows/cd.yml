@@ -107,7 +107,8 @@ jobs:
     name: Deploy Infrastructure (Terraform)
     runs-on: ubuntu-latest
     needs: [determine-environment, build-and-push]
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[terraform]')
+    # Always run Terraform to ensure infrastructure is up-to-date
+    # This ensures ECS task definitions have latest health check settings, environment variables, etc.
     
     steps:
       - name: Checkout code
@@ -140,7 +141,7 @@ jobs:
   deploy-ecs:
     name: Deploy to ECS
     runs-on: ubuntu-latest
-    needs: [determine-environment, build-and-push]
+    needs: [determine-environment, build-and-push, deploy-infrastructure]
     environment: ${{ needs.determine-environment.outputs.environment }}
     
     steps:

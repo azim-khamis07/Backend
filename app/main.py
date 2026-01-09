@@ -25,6 +25,7 @@ from app.core.exceptions import (
 from app.core.logging import setup_logging
 from app.core.metrics import get_metrics
 from app.core.middleware import LoggingMiddleware, RequestIDMiddleware, TimingMiddleware
+from app.core.rate_limit import RateLimitMiddleware, init_rate_limiter
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.db.session import init_db
 from app.infra.redis import cache_service
@@ -62,6 +63,10 @@ async def lifespan(app: FastAPI):
     # Startup
     logger = app.state.logger
     logger.info("Application starting up")
+
+    # Initialize rate limiter
+    init_rate_limiter()
+    logger.info("Rate limiter initialized")
 
     # Check Redis connection
     if cache_service.ping():
@@ -116,8 +121,9 @@ def create_app() -> FastAPI:
 
     # Custom middleware (order matters!)
     app.add_middleware(SecurityHeadersMiddleware)  # First - security headers
-    app.add_middleware(RequestIDMiddleware)  # Second - request ID
-    app.add_middleware(TimingMiddleware)  # Third - timing
+    app.add_middleware(RateLimitMiddleware)  # Second - rate limiting
+    app.add_middleware(RequestIDMiddleware)  # Third - request ID
+    app.add_middleware(TimingMiddleware)  # Fourth - timing
     app.add_middleware(LoggingMiddleware)  # Last - logging
 
     # Exception handlers
@@ -143,41 +149,105 @@ def create_app() -> FastAPI:
     # Health check endpoint
     @app.get("/health", tags=["monitoring"])
     async def health_check() -> dict:
-        """Health check endpoint with database and Redis status."""
+        """
+        Health check endpoint with comprehensive dependency status.
+        
+        Returns:
+            Health status with individual dependency checks
+        """
+        from fastapi import status as http_status
+        from fastapi.responses import JSONResponse
+        from sqlalchemy import text
+        
         from app.db.session import engine
+        from app.infra.s3 import S3Service
 
         status_data = {
-            "status": "healthy",
             "service": settings.APP_NAME,
             "version": settings.APP_VERSION,
+            "environment": settings.ENVIRONMENT,
+            "dependencies": {},
+        }
+
+        # Check database
+        db_status = "unhealthy"
+        db_error = None
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            db_status = "healthy"
+        except Exception as e:
+            db_status = "unhealthy"
+            db_error = str(e)
+        
+        status_data["dependencies"]["database"] = {
+            "status": db_status,
+            "error": db_error if db_error else None,
         }
 
         # Check Redis
-        redis_status = cache_service.ping()
-        status_data["redis"] = "connected" if redis_status else "disconnected"
-
-        # Check database
-        db_status = "disconnected"
+        redis_status = "unhealthy"
+        redis_error = None
         try:
-            with engine.connect() as conn:
-                conn.execute("SELECT 1")
-            db_status = "connected"
-        except Exception:
-            db_status = "disconnected"
+            if cache_service.ping():
+                redis_status = "healthy"
+            else:
+                redis_status = "unhealthy"
+                redis_error = "Ping failed"
+        except Exception as e:
+            redis_status = "unhealthy"
+            redis_error = str(e)
+        
+        status_data["dependencies"]["redis"] = {
+            "status": redis_status,
+            "error": redis_error if redis_error else None,
+        }
 
-        status_data["database"] = db_status
+        # Check S3 (optional - only if configured)
+        s3_status = "not_configured"
+        s3_error = None
+        if settings.AWS_S3_BUCKET_NAME:
+            try:
+                # Try to check S3 connectivity by creating a service instance
+                s3_service = S3Service()
+                if s3_service.s3:
+                    # Try a simple operation (head_bucket) to verify connectivity
+                    try:
+                        s3_service.s3.head_bucket(Bucket=settings.AWS_S3_BUCKET_NAME)
+                        s3_status = "healthy"
+                    except Exception as e:
+                        s3_status = "unhealthy"
+                        s3_error = f"S3 bucket access failed: {str(e)}"
+                else:
+                    s3_status = "unhealthy"
+                    s3_error = "S3 client not initialized"
+            except Exception as e:
+                s3_status = "unhealthy"
+                s3_error = str(e)
+        
+        status_data["dependencies"]["s3"] = {
+            "status": s3_status,
+            "error": s3_error if s3_error else None,
+        }
 
-        # Overall status
-        if redis_status and db_status == "connected":
-            overall_status = "healthy"
-        elif db_status == "connected":
-            overall_status = "degraded"  # DB OK but Redis down
+        # Determine overall status
+        critical_deps = [db_status]
+        optional_deps = [redis_status, s3_status]
+        
+        if all(status == "healthy" for status in critical_deps):
+            if all(status in ("healthy", "not_configured") for status in optional_deps):
+                overall_status = "healthy"
+                status_code = http_status.HTTP_200_OK
+            else:
+                overall_status = "degraded"  # Critical OK but optional services down
+                status_code = http_status.HTTP_200_OK
         else:
-            overall_status = "unhealthy"  # DB down
+            overall_status = "unhealthy"  # Critical service down
+            status_code = http_status.HTTP_503_SERVICE_UNAVAILABLE
 
         status_data["status"] = overall_status
 
-        return status_data
+        return JSONResponse(content=status_data, status_code=status_code)
 
     # Metrics endpoint
     @app.get("/metrics", tags=["monitoring"], include_in_schema=False)

@@ -1,20 +1,33 @@
-FROM python:3.12-slim
+# Stage 1: Build dependencies
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies needed for building
 RUN apt-get update && apt-get install -y \
     gcc \
-    postgresql-client \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files
 COPY pyproject.toml ./
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -e ".[production]" && \
-    pip install --no-cache-dir gunicorn
+# Install Python dependencies to user directory
+RUN pip install --user --no-cache-dir -e ".[production]" && \
+    pip install --user --no-cache-dir gunicorn
+
+# Stage 2: Runtime
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Copy only installed packages from builder
+COPY --from=builder /root/.local /root/.local
+
+# Install runtime system dependencies
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy application code
 COPY . .
@@ -23,9 +36,15 @@ COPY . .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
+# Add user's local bin to PATH
+ENV PATH=/root/.local/bin:$PATH
+
 # Expose port
 EXPOSE 8000
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
 # Default command
 CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "4"]
-

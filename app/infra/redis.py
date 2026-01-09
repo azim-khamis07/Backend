@@ -91,6 +91,27 @@ class CacheService:
             )
             return 0
 
+    def invalidate_patterns(self, patterns: list[str]) -> int:
+        """
+        Invalidate multiple cache patterns.
+        
+        Args:
+            patterns: List of cache key patterns (supports wildcards)
+            
+        Returns:
+            Total number of keys deleted
+        """
+        total_deleted = 0
+        for pattern in patterns:
+            deleted = self.delete_pattern(pattern)
+            total_deleted += deleted
+            if deleted > 0:
+                logger.debug(
+                    "Cache pattern invalidated",
+                    extra={"pattern": pattern, "keys_deleted": deleted}
+                )
+        return total_deleted
+
     def exists(self, key: str) -> bool:
         """Check if key exists in cache."""
         try:

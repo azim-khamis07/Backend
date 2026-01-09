@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
-from app.core.rate_limit import conditional_rate_limit
+from app.core.rate_limit import rate_limit
 from app.db.session import get_db
 from app.modules.auth.router import get_current_user_id
 from app.modules.reports.repo import ReportRepository
@@ -29,10 +29,11 @@ def get_report_service(db: Session = Depends(get_db)) -> ReportService:
     status_code=status.HTTP_202_ACCEPTED,
     response_model=ReportCreateResponse,
 )
-@conditional_rate_limit("10/hour")  # Limit report generation
+@rate_limit("10/hour")  # Limit report generation
 async def create_report(
     http_request: Request,
     request: ReportRequest,
+    db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
     service: ReportService = Depends(get_report_service),
 ) -> ReportCreateResponse:
@@ -53,7 +54,7 @@ async def create_report(
     **Note:** Report generation is asynchronous. Check status using the job ID.
     """
     params = request.model_dump()
-    result = service.create_report_job(user_id=user_id, params=params)
+    result = service.create_report_job(db, user_id=user_id, params=params)
     return ReportCreateResponse(**result)
 
 

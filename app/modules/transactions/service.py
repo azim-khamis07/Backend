@@ -4,8 +4,12 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
+from sqlalchemy.orm import Session
+
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.logging import get_logger
+from app.db.transaction import transaction
+from app.infra.redis import cache_service
 from app.models.transaction import Transaction
 from app.modules.transactions.repo import TransactionRepository
 
@@ -91,6 +95,7 @@ class TransactionService:
 
     def create_transaction(
         self,
+        db: Session,
         user_id: int,
         amount: Decimal,
         type: str,
@@ -103,6 +108,7 @@ class TransactionService:
         Create a new transaction.
 
         Args:
+            db: Database session
             user_id: User ID
             amount: Transaction amount
             type: Transaction type (expense/income)
@@ -134,33 +140,49 @@ class TransactionService:
         # Verify category ownership if provided
         if category_id:
             if not self.repo.verify_category_ownership(category_id, user_id):
-                raise NotFoundError("Category")
+                raise NotFoundError(
+                    resource="Category",
+                    resource_id=category_id,
+                    context={"user_id": user_id}
+                )
 
-        # Create transaction
-        transaction = self.repo.create(
-            user_id=user_id,
-            amount=amount,
-            type=type.lower(),
-            occurred_at=occurred_at,
-            category_id=category_id,
-            note=note,
-            tags=tags,
-        )
+        # Create transaction within a transaction boundary
+        with transaction(db):
+            transaction_obj = self.repo.create(
+                user_id=user_id,
+                amount=amount,
+                type=type.lower(),
+                occurred_at=occurred_at,
+                category_id=category_id,
+                note=note,
+                tags=tags,
+            )
 
         logger.info(
             "Transaction created",
             extra={
-                "transaction_id": transaction.id,
+                "transaction_id": transaction_obj.id,
                 "user_id": user_id,
                 "amount": str(amount),
                 "type": type.lower(),
             },
         )
 
-        return self._transaction_to_dict(transaction)
+        # Invalidate cache for this user's analytics and dashboard
+        cache_patterns = [
+            f"dashboard:{user_id}:*",
+            f"analytics:{user_id}:*",
+            f"cashflow:{user_id}:*",
+            f"category_breakdown:{user_id}:*",
+            f"monthly_summary:{user_id}:*",
+        ]
+        cache_service.invalidate_patterns(cache_patterns)
+
+        return self._transaction_to_dict(transaction_obj)
 
     def update_transaction(
         self,
+        db: Session,
         transaction_id: int,
         user_id: int,
         amount: Optional[Decimal] = None,
@@ -193,7 +215,11 @@ class TransactionService:
         # Get transaction
         transaction = self.repo.get_by_id(transaction_id, user_id)
         if not transaction:
-            raise NotFoundError("Transaction")
+            raise NotFoundError(
+                resource="Transaction",
+                resource_id=transaction_id,
+                context={"user_id": user_id}
+            )
 
         # Validate and update type
         if type is not None:
@@ -220,7 +246,11 @@ class TransactionService:
         if category_id is not None:
             if category_id != transaction.category_id:  # Only check if changing
                 if not self.repo.verify_category_ownership(category_id, user_id):
-                    raise NotFoundError("Category")
+                    raise NotFoundError(
+                        resource="Category",
+                        resource_id=category_id,
+                        context={"user_id": user_id}
+                    )
             transaction.category_id = category_id
 
         # Update other fields
@@ -231,20 +261,32 @@ class TransactionService:
         if tags is not None:
             transaction.tags = tags
 
-        # Save changes
-        transaction = self.repo.update(transaction)
+        # Save changes within a transaction boundary
+        with transaction(db):
+            transaction = self.repo.update(transaction)
 
         logger.info(
             "Transaction updated", extra={"transaction_id": transaction_id, "user_id": user_id}
         )
 
+        # Invalidate cache for this user's analytics and dashboard
+        cache_patterns = [
+            f"dashboard:{user_id}:*",
+            f"analytics:{user_id}:*",
+            f"cashflow:{user_id}:*",
+            f"category_breakdown:{user_id}:*",
+            f"monthly_summary:{user_id}:*",
+        ]
+        cache_service.invalidate_patterns(cache_patterns)
+
         return self._transaction_to_dict(transaction)
 
-    def delete_transaction(self, transaction_id: int, user_id: int) -> dict:
+    def delete_transaction(self, db: Session, transaction_id: int, user_id: int) -> dict:
         """
         Delete transaction.
 
         Args:
+            db: Database session
             transaction_id: Transaction ID
             user_id: User ID (for authorization)
 
@@ -255,16 +297,31 @@ class TransactionService:
             NotFoundError: If transaction not found
         """
         # Get transaction
-        transaction = self.repo.get_by_id(transaction_id, user_id)
-        if not transaction:
-            raise NotFoundError("Transaction")
+        transaction_obj = self.repo.get_by_id(transaction_id, user_id)
+        if not transaction_obj:
+            raise NotFoundError(
+                resource="Transaction",
+                resource_id=transaction_id,
+                context={"user_id": user_id}
+            )
 
-        # Delete transaction
-        self.repo.delete(transaction)
+        # Delete transaction within a transaction boundary
+        with transaction(db):
+            self.repo.delete(transaction_obj)
 
         logger.info(
             "Transaction deleted", extra={"transaction_id": transaction_id, "user_id": user_id}
         )
+
+        # Invalidate cache for this user's analytics and dashboard
+        cache_patterns = [
+            f"dashboard:{user_id}:*",
+            f"analytics:{user_id}:*",
+            f"cashflow:{user_id}:*",
+            f"category_breakdown:{user_id}:*",
+            f"monthly_summary:{user_id}:*",
+        ]
+        cache_service.invalidate_patterns(cache_patterns)
 
         return {"message": "Transaction deleted successfully"}
 

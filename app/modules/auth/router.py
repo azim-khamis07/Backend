@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AuthenticationError
-from app.core.rate_limit import conditional_rate_limit
+from app.core.rate_limit import rate_limit
 from app.core.security import decode_token
 from app.db.session import get_db
 from app.modules.auth.repo import AuthRepository
@@ -45,7 +45,7 @@ def get_current_user_id(
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=dict)
-@conditional_rate_limit("5/minute")  # Stricter limit for registration
+@rate_limit("5/minute")  # Stricter limit for registration
 async def register(
     request: Request,
     data: UserRegister,
@@ -62,7 +62,7 @@ async def register(
 
 
 @router.post("/login", response_model=dict)
-@conditional_rate_limit("10/minute")  # Stricter limit for login
+@rate_limit("10/minute")  # Stricter limit for login
 async def login(
     request: Request,
     data: UserLogin,

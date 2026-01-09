@@ -4,6 +4,7 @@ from typing import Optional
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.logging import get_logger
+from app.infra.redis import cache_service
 from app.modules.categories.repo import CategoryRepository
 
 logger = get_logger(__name__)
@@ -135,6 +136,13 @@ class CategoryService:
             extra={"category_id": category.id, "user_id": user_id, "category_name": name},
         )
 
+        # Invalidate cache for this user's analytics (category breakdown may change)
+        cache_patterns = [
+            f"category_breakdown:{user_id}:*",
+            f"analytics:{user_id}:*",
+        ]
+        cache_service.invalidate_patterns(cache_patterns)
+
         return {
             "id": category.id,
             "user_id": category.user_id,
@@ -206,6 +214,13 @@ class CategoryService:
 
         logger.info("Category updated", extra={"category_id": category_id, "user_id": user_id})
 
+        # Invalidate cache for this user's analytics (category breakdown may change)
+        cache_patterns = [
+            f"category_breakdown:{user_id}:*",
+            f"analytics:{user_id}:*",
+        ]
+        cache_service.invalidate_patterns(cache_patterns)
+
         return {
             "id": category.id,
             "user_id": category.user_id,
@@ -240,5 +255,12 @@ class CategoryService:
         self.repo.delete(category)
 
         logger.info("Category deleted", extra={"category_id": category_id, "user_id": user_id})
+
+        # Invalidate cache for this user's analytics (category breakdown may change)
+        cache_patterns = [
+            f"category_breakdown:{user_id}:*",
+            f"analytics:{user_id}:*",
+        ]
+        cache_service.invalidate_patterns(cache_patterns)
 
         return {"message": "Category deleted successfully"}
