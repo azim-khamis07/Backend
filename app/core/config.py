@@ -94,6 +94,18 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must be at least 32 characters long")
         return v
 
+    @field_validator("DB_ECHO", mode="before")
+    @classmethod
+    def validate_db_echo(cls, v) -> bool:
+        """Convert string/None to boolean for DB_ECHO."""
+        if v is None or v == "":
+            return False
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            return v.lower() in ("true", "1", "yes", "on")
+        return bool(v)
+
     @property
     def is_production(self) -> bool:
         """Check if running in production."""
