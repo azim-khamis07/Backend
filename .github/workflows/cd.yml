@@ -164,13 +164,24 @@ jobs:
             --task-definition ${{ needs.determine-environment.outputs.ecs_task_definition }} \
             --query taskDefinition > task-definition.json || echo "{}" > task-definition.json
       
+      - name: Set image URI for ECS deployment
+        id: set-ecs-image
+        run: |
+          IMAGE_URI="${{ needs.build-and-push.outputs.image_uri }}"
+          if [ -z "$IMAGE_URI" ]; then
+            # Fallback: construct image URI if output is empty
+            IMAGE_URI="${{ needs.build-and-push.outputs.ecr_registry }}/${{ needs.build-and-push.outputs.ecr_repository }}:${{ github.sha }}"
+          fi
+          echo "Using image URI: $IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+      
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
           container-name: api
-          image: ${{ needs.build-and-push.outputs.image_uri || format('{0}/{1}:{2}', needs.build-and-push.outputs.ecr_registry, needs.build-and-push.outputs.ecr_repository, github.sha) }}
+          image: ${{ steps.set-ecs-image.outputs.image_uri }}
       
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
