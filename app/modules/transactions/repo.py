@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional, Tuple
 
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.category import Category

@@ -12,7 +12,6 @@ from app.modules.auth.router import get_current_user_id
 from app.modules.transactions.repo import TransactionRepository
 from app.modules.transactions.schemas import (
     TransactionCreate,
-    TransactionFilters,
     TransactionListResponse,
     TransactionResponse,
     TransactionUpdate,

@@ -2,11 +2,17 @@
 
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.category import Category
+    from app.models.receipt import Receipt
+    from app.models.user import User
 
 
 class Transaction(Base, TimestampMixin):

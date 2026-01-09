@@ -1,10 +1,10 @@
 """Receipt router endpoints."""
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.infra.s3 import S3Service, s3_service
+from app.infra.s3 import s3_service
 from app.modules.auth.router import get_current_user_id
 from app.modules.receipts.repo import ReceiptRepository
 from app.modules.receipts.schemas import (

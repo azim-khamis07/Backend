@@ -1,8 +1,7 @@
 """Analytics repository for aggregation queries."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session

@@ -1,7 +1,6 @@
 """User management router endpoints."""
 
 from fastapi import APIRouter, Depends
-from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db

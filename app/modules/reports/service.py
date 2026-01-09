@@ -1,12 +1,9 @@
 """Report service for business logic."""
 
-import uuid
 from datetime import datetime
-from typing import Optional
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.logging import get_logger
-from app.infra.queue import celery_app
 from app.infra.s3 import s3_service
 from app.modules.reports.repo import ReportRepository
 from app.modules.reports.tasks import generate_pdf_report_task

@@ -1,13 +1,16 @@
 """Report job model for async PDF generation."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from app.db.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class ReportJob(Base, TimestampMixin):

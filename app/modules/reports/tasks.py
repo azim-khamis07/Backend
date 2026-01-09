@@ -1,7 +1,6 @@
 """Celery tasks for report generation."""
 
 import io
-import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -231,8 +230,9 @@ def generate_pdf_report_task(job_id: int) -> dict:
 
 
 # Import at the end to avoid circular imports
-from app.infra.queue import celery_app
-from app.models.report_job import ReportJob
+# These imports must be at the end to avoid circular dependency
+from app.infra.queue import celery_app  # noqa: E402
+from app.models.report_job import ReportJob  # noqa: E402
 
 # Register task with Celery
 generate_pdf_report_task = celery_app.task(

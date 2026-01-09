@@ -1,8 +1,5 @@
 """Authentication service for business logic."""
 
-from datetime import timedelta
-from typing import Optional
-
 from app.core.config import get_settings
 from app.core.exceptions import AuthenticationError, ConflictError, NotFoundError
 from app.core.logging import get_logger

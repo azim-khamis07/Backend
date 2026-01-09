@@ -1,9 +1,6 @@
 """AWS S3 client setup and file upload helpers."""
 
-import os
-from datetime import timedelta
 from typing import Optional
-from urllib.parse import urljoin
 
 import boto3
 from botocore.client import BaseClient

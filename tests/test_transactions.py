@@ -3,8 +3,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from app.core.security import get_password_hash
-
 
 def test_create_transaction(authenticated_client, test_user, db_session):
     """Test create transaction."""
@@ -228,8 +226,7 @@ def test_list_transactions_date_filter(authenticated_client, test_user, db_sessi
         "/api/v1/transactions?start_date=2026-01-01T00:00:00Z&end_date=2026-01-31T23:59:59Z"
     )
     assert response.status_code == 200
-    data = response.json()
-    # Should include tx1 and tx2, but not tx3
+    response.json()  # Should include tx1 and tx2, but not tx3
 
 
 def test_list_transactions_amount_filter(authenticated_client, test_user, db_session):

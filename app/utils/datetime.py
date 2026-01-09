@@ -1,7 +1,6 @@
 """DateTime utilities for timezone handling."""
 
 from datetime import datetime, timezone
-from typing import Optional
 
 
 def utcnow() -> datetime:

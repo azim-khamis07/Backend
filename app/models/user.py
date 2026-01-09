@@ -1,9 +1,16 @@
 """User model."""
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.category import Category
+    from app.models.report_job import ReportJob
+    from app.models.transaction import Transaction
 
 
 class User(Base, TimestampMixin):

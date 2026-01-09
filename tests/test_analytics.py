@@ -3,8 +3,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from app.core.security import get_password_hash
-
 
 def test_get_dashboard_summary(authenticated_client, test_user, db_session):
     """Test get dashboard summary."""
