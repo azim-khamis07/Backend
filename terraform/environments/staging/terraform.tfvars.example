@@ -1,0 +1,37 @@
+# Staging Environment Configuration
+# Copy this file to terraform.tfvars and fill in your values
+
+aws_region = "us-east-1"
+project_name = "expense-tracker"
+
+# VPC (different CIDR for staging)
+vpc_cidr = "10.2.0.0/16"
+
+# Database
+db_name = "expensedb_staging"
+db_username = "expenseuser"
+db_password = "your-staging-password-here"
+rds_instance_class = "db.t3.small"
+rds_allocated_storage = 20
+
+# Redis
+redis_node_type = "cache.t3.small"
+redis_num_nodes = 1
+
+# ECR
+ecr_repository_name = "expense-tracker-backend"
+
+# ECS
+ecs_cluster_name = "expense-tracker-cluster"
+ecs_service_name = "expense-tracker-api"
+ecs_task_cpu = 1024
+ecs_task_memory = 2048
+ecs_desired_count = 2
+app_image_tag = "latest"
+
+# S3
+s3_bucket_name = "expense-tracker-receipts-staging"
+
+# Application
+secret_key = "your-staging-secret-key-32-chars-minimum"
+

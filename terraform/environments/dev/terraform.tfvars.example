@@ -1,0 +1,29 @@
+# Development Environment Configuration
+# Copy this file to terraform.tfvars and fill in your values
+
+aws_region = "us-east-1"
+project_name = "expense-tracker"
+
+# VPC (different CIDR for dev)
+vpc_cidr = "10.1.0.0/16"
+
+# Database
+db_name = "expensedb_dev"
+db_username = "expenseuser"
+db_password = "your-dev-password-here"
+# Note: Uses db.t3.micro (smaller for dev)
+
+# ECR
+ecr_repository_name = "expense-tracker-backend"
+
+# ECS
+ecs_cluster_name = "expense-tracker-cluster"
+ecs_service_name = "expense-tracker-api"
+app_image_tag = "latest"
+
+# S3
+s3_bucket_name = "expense-tracker-receipts-dev"
+
+# Application
+secret_key = "your-dev-secret-key-32-chars-minimum"
+
