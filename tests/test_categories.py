@@ -114,8 +114,7 @@ def test_list_categories_pagination(authenticated_client, test_user, db_session)
 
     # Create multiple categories
     categories = [
-        Category(user_id=test_user.id, name=f"Category {i}", type="expense")
-        for i in range(5)
+        Category(user_id=test_user.id, name=f"Category {i}", type="expense") for i in range(5)
     ]
     db_session.add_all(categories)
     db_session.commit()
@@ -275,4 +274,3 @@ def test_category_unauthorized(client):
         json={"name": "Test", "type": "expense"},
     )
     assert response.status_code == 403
-

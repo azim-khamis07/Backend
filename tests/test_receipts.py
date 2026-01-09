@@ -125,7 +125,7 @@ def test_get_receipt_url(authenticated_client, test_user, db_session):
 
     # Get receipt URL
     response = authenticated_client.get(f"/api/v1/transactions/{transaction.id}/receipt")
-    
+
     # Note: This will fail if S3 is not configured
     assert response.status_code in [200, 422, 500]
     if response.status_code == 200:
@@ -232,4 +232,3 @@ def test_upload_receipt_duplicate(authenticated_client, test_user, db_session):
         files=files,
     )
     assert response.status_code == 422
-

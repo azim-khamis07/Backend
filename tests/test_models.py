@@ -88,4 +88,3 @@ def test_user_relationships(db_session, test_user):
     assert test_user.categories[0].name == "Food"
     assert len(test_user.transactions) == 1
     assert test_user.transactions[0].amount == 25.50
-

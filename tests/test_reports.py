@@ -177,4 +177,3 @@ def test_create_report_with_filters(authenticated_client, test_user, db_session)
     assert response.status_code == 202
     data = response.json()
     assert "job_id" in data
-

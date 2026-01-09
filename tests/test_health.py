@@ -1,5 +1,6 @@
 """Tests for health check endpoint."""
 
+
 def test_health_check(client):
     """Test health check endpoint."""
     response = client.get("/health")
@@ -18,4 +19,3 @@ def test_root_endpoint(client):
     assert "message" in data
     assert "version" in data
     assert "docs" in data
-

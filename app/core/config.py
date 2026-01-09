@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_PER_MINUTE: int = 60
     RATE_LIMIT_PER_HOUR: int = 1000
-    
+
     # Sentry (Error Tracking)
     SENTRY_DSN: Optional[str] = None
     SENTRY_ENVIRONMENT: str = "development"

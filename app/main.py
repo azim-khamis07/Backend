@@ -23,9 +23,9 @@ from app.core.exceptions import (
     sqlalchemy_error_handler,
 )
 from app.core.logging import setup_logging
+from app.core.metrics import get_metrics
 from app.core.middleware import LoggingMiddleware, RequestIDMiddleware, TimingMiddleware
 from app.core.security_headers import SecurityHeadersMiddleware
-from app.core.metrics import get_metrics
 from app.db.session import init_db
 from app.infra.redis import cache_service
 from app.modules.analytics.router import router as analytics_router

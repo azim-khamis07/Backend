@@ -156,4 +156,3 @@ def test_change_password_unauthorized(client):
         },
     )
     assert response.status_code == 403
-

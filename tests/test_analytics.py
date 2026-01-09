@@ -263,4 +263,3 @@ def test_category_breakdown_uncategorized(authenticated_client, test_user, db_se
     data = response.json()
     assert "uncategorized_expenses" in data
     assert "uncategorized_income" in data
-

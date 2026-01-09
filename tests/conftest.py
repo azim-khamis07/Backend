@@ -92,4 +92,3 @@ def authenticated_client(client, test_user: User):
     # Set authorization header
     client.headers = {"Authorization": f"Bearer {token}"}
     return client
-

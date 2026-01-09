@@ -238,13 +238,22 @@ def test_list_transactions_amount_filter(authenticated_client, test_user, db_ses
 
     # Create transactions with different amounts
     tx1 = Transaction(
-        user_id=test_user.id, amount=Decimal("25.00"), type="expense", occurred_at=datetime.now(timezone.utc)
+        user_id=test_user.id,
+        amount=Decimal("25.00"),
+        type="expense",
+        occurred_at=datetime.now(timezone.utc),
     )
     tx2 = Transaction(
-        user_id=test_user.id, amount=Decimal("50.00"), type="expense", occurred_at=datetime.now(timezone.utc)
+        user_id=test_user.id,
+        amount=Decimal("50.00"),
+        type="expense",
+        occurred_at=datetime.now(timezone.utc),
     )
     tx3 = Transaction(
-        user_id=test_user.id, amount=Decimal("100.00"), type="expense", occurred_at=datetime.now(timezone.utc)
+        user_id=test_user.id,
+        amount=Decimal("100.00"),
+        type="expense",
+        occurred_at=datetime.now(timezone.utc),
     )
     db_session.add_all([tx1, tx2, tx3])
     db_session.commit()
@@ -525,4 +534,3 @@ def test_transaction_unauthorized(client):
         },
     )
     assert response.status_code == 403
-

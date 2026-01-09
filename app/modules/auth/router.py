@@ -2,6 +2,8 @@
 
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AuthenticationError
@@ -17,8 +19,6 @@ from app.modules.auth.schemas import (
     UserResponse,
 )
 from app.modules.auth.service import AuthService
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()

@@ -65,4 +65,3 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 def get_rate_limiter() -> Limiter:
     """Get rate limiter instance."""
     return limiter
-

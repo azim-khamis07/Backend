@@ -90,4 +90,3 @@ def test_metrics_collection(client: TestClient):
     assert response.status_code == 200
     # Metrics should include our request
     assert "http_requests_total" in response.text
-

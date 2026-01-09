@@ -1,6 +1,6 @@
 """Prometheus metrics collection."""
 
-from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
+from prometheus_client import REGISTRY, Counter, Histogram, generate_latest
 from starlette.responses import Response
 
 # Request metrics
@@ -107,4 +107,3 @@ class MetricsMiddleware:
         # Replace numeric IDs
         path = re.sub(r"/\d+", "/{id}", path)
         return path
-
