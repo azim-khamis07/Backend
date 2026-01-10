@@ -107,7 +107,13 @@ def test_cache_misses_total_counter():
 
 def test_metrics_registry_contains_all_counters():
     """Test that all metrics are registered in Prometheus registry."""
-    metric_names = [metric.name for metric in REGISTRY._collector_to_names.keys()]
-    assert "http_requests_total" in metric_names or any(
-        "http_requests_total" in str(name) for name in metric_names
-    )
+    # Get metrics from registry as text
+    metrics_text = get_metrics().body.decode("utf-8")
+    # Verify that our custom metrics are present in the output
+    assert "http_requests_total" in metrics_text
+    assert "transactions_created_total" in metrics_text
+    assert "categories_created_total" in metrics_text
+    assert "reports_generated_total" in metrics_text
+    assert "cache_hits_total" in metrics_text
+    assert "cache_misses_total" in metrics_text
+    assert "http_request_duration_seconds" in metrics_text
