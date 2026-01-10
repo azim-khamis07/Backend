@@ -1,5 +1,7 @@
 """Pytest configuration and fixtures."""
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -7,6 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.config import get_settings
+from app.core.security import get_password_hash
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import create_app
@@ -42,15 +45,13 @@ def db_session() -> Session:
 @pytest.fixture(scope="function")
 def app(db_session: Session):
     """Create FastAPI app for testing."""
-    import os
+    import app.core.rate_limit as rate_limit_module
 
     # Ensure test environment settings
     os.environ.setdefault("ENVIRONMENT", "test")
     os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
     # Clear settings cache to reload with test values
-    from app.core.config import get_settings
-    import app.core.rate_limit as rate_limit_module
 
     get_settings.cache_clear()
 
@@ -82,8 +83,6 @@ def client(app):
 @pytest.fixture(scope="function")
 def test_user(db_session: Session) -> User:
     """Create a test user."""
-    from app.core.security import get_password_hash
-
     user = User(
         email="test@example.com",
         password_hash=get_password_hash("testpassword123"),

@@ -1,8 +1,8 @@
 """Rate limiting middleware using slowapi."""
 
-from typing import Callable, Optional
 import inspect
 from functools import wraps
+from typing import Callable, Optional
 
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
