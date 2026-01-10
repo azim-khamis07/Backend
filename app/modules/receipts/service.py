@@ -64,8 +64,9 @@ class ReceiptService:
             content_type_lower = "image/jpeg"
 
         if content_type_lower not in ALLOWED_CONTENT_TYPES:
+            allowed_types = ", ".join(sorted(ALLOWED_CONTENT_TYPES))
             raise ValidationError(
-                f"Invalid file type '{content_type}'. Allowed types: {', '.join(sorted(ALLOWED_CONTENT_TYPES))}"
+                f"Invalid file type '{content_type}'. Allowed types: {allowed_types}"
             )
 
         # Check file size
@@ -82,9 +83,11 @@ class ReceiptService:
             )
 
         if file_size > MAX_FILE_SIZE:
+            max_size_mb = MAX_FILE_SIZE / (1024 * 1024)
+            file_size_mb = file_size / (1024 * 1024)
             raise ValidationError(
-                f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / (1024 * 1024):.1f}MB. "
-                f"File size: {file_size / (1024 * 1024):.2f}MB"
+                f"File size exceeds maximum allowed size of {max_size_mb:.1f}MB. "
+                f"File size: {file_size_mb:.2f}MB"
             )
 
         # Validate file extension if filename provided
