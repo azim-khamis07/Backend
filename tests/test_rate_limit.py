@@ -72,6 +72,23 @@ async def test_rate_limit_middleware_skips_when_disabled():
         assert result == mock_response
 
 
+async def test_rate_limit_middleware_with_limiter():
+    """Test RateLimitMiddleware passes through when limiter is enabled (but no default limits)."""
+    mock_response = Mock(spec=Response)
+    mock_app = AsyncMock(return_value=mock_response)
+    middleware = RateLimitMiddleware(mock_app)
+    mock_request = MagicMock(spec=Request)
+
+    async def mock_call_next(request):
+        return mock_response
+
+    # Mock get_rate_limiter to return a limiter
+    mock_limiter = MagicMock(spec=Limiter)
+    with patch("app.core.rate_limit.get_rate_limiter", return_value=mock_limiter):
+        result = await middleware.dispatch(mock_request, mock_call_next)
+        assert result == mock_response
+
+
 async def test_rate_limit_decorator_async_function_disabled():
     """Test rate_limit decorator with async function when rate limiting disabled."""
 
@@ -103,21 +120,26 @@ def test_rate_limit_decorator_sync_function_disabled():
 async def test_rate_limit_decorator_async_with_rate_limit_exceeded():
     """Test rate_limit decorator handles RateLimitExceeded for async functions."""
     mock_limiter = MagicMock(spec=Limiter)
-    mock_limited_func = AsyncMock()
-    mock_limited_func.side_effect = RateLimitExceeded()
 
     @rate_limit("10/minute")
     async def async_endpoint(request: Request):
         return {"message": "success"}
 
-    # Mock get_rate_limiter to return a limiter
-    mock_limit_func = Mock(return_value=mock_limited_func)
-    mock_limiter.limit = Mock(return_value=mock_limit_func)
+    # Create a function that raises RateLimitExceeded when called
+    def raise_rate_limit(*args, **kwargs):
+        raise RateLimitExceeded()
+
+    # Mock the limiter.limit() to return a function that raises the exception
+    mock_limited_func = AsyncMock(side_effect=RateLimitExceeded())
+    mock_limit_decorator = Mock(return_value=mock_limited_func)
+    mock_limiter.limit = Mock(return_value=mock_limit_decorator)
 
     with patch("app.core.rate_limit.get_rate_limiter", return_value=mock_limiter):
         mock_request = MagicMock(spec=Request)
         mock_request.url.path = "/test"
         mock_request.method = "GET"
+        mock_request.url = MagicMock()
+        mock_request.url.path = "/test"
 
         result = await async_endpoint(mock_request)
         assert isinstance(result, JSONResponse)
@@ -132,13 +154,13 @@ async def test_rate_limit_decorator_async_request_from_kwargs():
         return {"message": "success"}
 
     mock_limiter = MagicMock(spec=Limiter)
-    mock_limited_func = AsyncMock()
-    mock_limited_func.side_effect = RateLimitExceeded()
-    mock_limit_func = Mock(return_value=mock_limited_func)
-    mock_limiter.limit = Mock(return_value=mock_limit_func)
+    mock_limited_func = AsyncMock(side_effect=RateLimitExceeded())
+    mock_limit_decorator = Mock(return_value=mock_limited_func)
+    mock_limiter.limit = Mock(return_value=mock_limit_decorator)
 
     with patch("app.core.rate_limit.get_rate_limiter", return_value=mock_limiter):
         mock_request = MagicMock(spec=Request)
+        mock_request.url = MagicMock()
         mock_request.url.path = "/test"
         mock_request.method = "POST"
 
@@ -155,13 +177,13 @@ def test_rate_limit_decorator_sync_with_rate_limit_exceeded():
         return {"message": "success"}
 
     mock_limiter = MagicMock(spec=Limiter)
-    mock_limited_func = MagicMock()
-    mock_limited_func.side_effect = RateLimitExceeded()
-    mock_limit_func = Mock(return_value=mock_limited_func)
-    mock_limiter.limit = Mock(return_value=mock_limit_func)
+    mock_limited_func = Mock(side_effect=RateLimitExceeded())
+    mock_limit_decorator = Mock(return_value=mock_limited_func)
+    mock_limiter.limit = Mock(return_value=mock_limit_decorator)
 
     with patch("app.core.rate_limit.get_rate_limiter", return_value=mock_limiter):
         mock_request = MagicMock(spec=Request)
+        mock_request.url = MagicMock()
         mock_request.url.path = "/test"
         mock_request.method = "PUT"
 
@@ -178,10 +200,9 @@ async def test_rate_limit_decorator_no_request_object():
         return {"message": "success"}
 
     mock_limiter = MagicMock(spec=Limiter)
-    mock_limited_func = AsyncMock()
-    mock_limited_func.side_effect = RateLimitExceeded()
-    mock_limit_func = Mock(return_value=mock_limited_func)
-    mock_limiter.limit = Mock(return_value=mock_limit_func)
+    mock_limited_func = AsyncMock(side_effect=RateLimitExceeded())
+    mock_limit_decorator = Mock(return_value=mock_limited_func)
+    mock_limiter.limit = Mock(return_value=mock_limit_decorator)
 
     with patch("app.core.rate_limit.get_rate_limiter", return_value=mock_limiter):
         result = await async_endpoint("test")
@@ -189,6 +210,25 @@ async def test_rate_limit_decorator_no_request_object():
         assert result.status_code == 429
         # Should handle missing request gracefully
         assert "unknown" in result.body.decode()
+
+
+async def test_rate_limit_decorator_async_with_enabled_limiter():
+    """Test rate_limit decorator with enabled limiter (successful call)."""
+
+    @rate_limit("10/minute")
+    async def async_endpoint(request: Request):
+        return {"message": "success"}
+
+    mock_limiter = MagicMock(spec=Limiter)
+    mock_limited_func = AsyncMock(return_value={"message": "success"})
+    mock_limit_decorator = Mock(return_value=mock_limited_func)
+    mock_limiter.limit = Mock(return_value=mock_limit_decorator)
+
+    with patch("app.core.rate_limit.get_rate_limiter", return_value=mock_limiter):
+        mock_request = MagicMock(spec=Request)
+        result = await async_endpoint(mock_request)
+        assert result == {"message": "success"}
+        mock_limiter.limit.assert_called_once_with("10/minute")
 
 
 def test_get_rate_limiter_initializes_on_first_call():
