@@ -94,8 +94,9 @@ class ReceiptService:
         if filename:
             file_ext = os.path.splitext(filename.lower())[1]
             if file_ext not in ALLOWED_EXTENSIONS:
+                allowed_exts = ", ".join(sorted(ALLOWED_EXTENSIONS))
                 raise ValidationError(
-                    f"Invalid file extension '{file_ext}'. Allowed extensions: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+                    f"Invalid file extension '{file_ext}'. Allowed extensions: {allowed_exts}"
                 )
 
             # Additional validation: check if extension matches content type
