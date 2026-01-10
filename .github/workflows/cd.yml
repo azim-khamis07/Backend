@@ -130,13 +130,75 @@ jobs:
         working-directory: terraform/environments/${{ needs.determine-environment.outputs.environment }}
         run: terraform init
       
+      - name: Check and Handle Stale Terraform Lock
+        working-directory: terraform/environments/${{ needs.determine-environment.outputs.environment }}
+        continue-on-error: true
+        run: |
+          STATE_KEY="${{ needs.determine-environment.outputs.environment }}/terraform.tfstate"
+          DYNAMODB_TABLE="expense-tracker-terraform-lock"
+          LOCK_ID="expense-tracker-terraform-state-301691474806/$STATE_KEY"
+          
+          echo "Checking for stale locks..."
+          
+          # Get lock item from DynamoDB
+          LOCK_JSON=$(aws dynamodb get-item \
+            --table-name "$DYNAMODB_TABLE" \
+            --key "{\"LockID\": {\"S\": \"$LOCK_ID\"}}" \
+            --region us-east-1 2>/dev/null || echo "{}")
+          
+          if [ "$LOCK_JSON" != "{}" ] && [ -n "$LOCK_JSON" ]; then
+            echo "Lock found, extracting creation time..."
+            
+            # Extract Info attribute (contains lock metadata as JSON string)
+            INFO_JSON=$(echo "$LOCK_JSON" | jq -r '.Item.Info.S' 2>/dev/null || echo "{}")
+            
+            if [ "$INFO_JSON" != "{}" ] && [ "$INFO_JSON" != "null" ] && [ -n "$INFO_JSON" ]; then
+              # Parse Created time from Info JSON
+              CREATED_TIME=$(echo "$INFO_JSON" | jq -r '.Created' 2>/dev/null || echo "")
+              
+              if [ -n "$CREATED_TIME" ] && [ "$CREATED_TIME" != "null" ]; then
+                echo "Lock created at: $CREATED_TIME"
+                
+                # Calculate lock age in seconds
+                CREATED_EPOCH=$(date -u -d "$CREATED_TIME" +%s 2>/dev/null || date -u -j -f "%Y-%m-%dT%H:%M:%S" "${CREATED_TIME%.*}" +%s 2>/dev/null || echo "0")
+                CURRENT_EPOCH=$(date +%s)
+                
+                if [ "$CREATED_EPOCH" != "0" ] && [ "$CREATED_EPOCH" -gt 0 ]; then
+                  AGE_SECONDS=$((CURRENT_EPOCH - CREATED_EPOCH))
+                  AGE_MINUTES=$((AGE_SECONDS / 60))
+                  
+                  echo "Lock age: $AGE_MINUTES minutes ($AGE_SECONDS seconds)"
+                  
+                  # If lock is older than 10 minutes, consider it stale
+                  if [ "$AGE_MINUTES" -gt 10 ]; then
+                    echo "⚠️ Stale lock detected (${AGE_MINUTES} minutes old). Attempting to remove..."
+                    
+                    # Try terraform force-unlock first
+                    terraform force-unlock -force "$LOCK_ID" 2>&1 || {
+                      echo "force-unlock failed, attempting direct DynamoDB deletion..."
+                      # Fallback: Delete lock directly from DynamoDB
+                      aws dynamodb delete-item \
+                        --table-name "$DYNAMODB_TABLE" \
+                        --key "{\"LockID\": {\"S\": \"$LOCK_ID\"}}" \
+                        --region us-east-1 && echo "✅ Stale lock removed from DynamoDB"
+                    }
+                  else
+                    echo "Lock is recent (${AGE_MINUTES} minutes old), will wait for it to be released..."
+                  fi
+                fi
+              fi
+            fi
+          else
+            echo "✅ No lock found"
+          fi
+      
       - name: Terraform Plan
         working-directory: terraform/environments/${{ needs.determine-environment.outputs.environment }}
-        run: terraform plan -out=tfplan
+        run: terraform plan -lock-timeout=5m -out=tfplan
       
       - name: Terraform Apply
         working-directory: terraform/environments/${{ needs.determine-environment.outputs.environment }}
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -lock-timeout=10m -auto-approve tfplan
 
   deploy-ecs:
     name: Deploy to ECS
