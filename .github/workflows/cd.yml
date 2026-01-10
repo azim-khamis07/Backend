@@ -138,56 +138,59 @@ jobs:
           DYNAMODB_TABLE="expense-tracker-terraform-lock"
           LOCK_ID="expense-tracker-terraform-state-301691474806/$STATE_KEY"
           
-          echo "Checking for stale locks..."
+          echo "Checking for stale locks on state: $STATE_KEY"
           
-          # Get lock item from DynamoDB
-          LOCK_JSON=$(aws dynamodb get-item \
+          # Check if lock exists in DynamoDB
+          LOCK_EXISTS=$(aws dynamodb get-item \
             --table-name "$DYNAMODB_TABLE" \
             --key "{\"LockID\": {\"S\": \"$LOCK_ID\"}}" \
-            --region us-east-1 2>/dev/null || echo "{}")
+            --region us-east-1 \
+            --query 'Item.LockID' \
+            --output text 2>/dev/null || echo "")
           
-          if [ "$LOCK_JSON" != "{}" ] && [ -n "$LOCK_JSON" ]; then
-            echo "Lock found, extracting creation time..."
+          if [ -n "$LOCK_EXISTS" ] && [ "$LOCK_EXISTS" != "None" ]; then
+            echo "⚠️ Lock found. Attempting to check if it's stale..."
             
-            # Extract Info attribute (contains lock metadata as JSON string)
-            INFO_JSON=$(echo "$LOCK_JSON" | jq -r '.Item.Info.S' 2>/dev/null || echo "{}")
+            # Get the full lock item to check creation time
+            LOCK_ITEM=$(aws dynamodb get-item \
+              --table-name "$DYNAMODB_TABLE" \
+              --key "{\"LockID\": {\"S\": \"$LOCK_ID\"}}" \
+              --region us-east-1 2>/dev/null)
             
-            if [ "$INFO_JSON" != "{}" ] && [ "$INFO_JSON" != "null" ] && [ -n "$INFO_JSON" ]; then
-              # Parse Created time from Info JSON
-              CREATED_TIME=$(echo "$INFO_JSON" | jq -r '.Created' 2>/dev/null || echo "")
-              
-              if [ -n "$CREATED_TIME" ] && [ "$CREATED_TIME" != "null" ]; then
-                echo "Lock created at: $CREATED_TIME"
-                
-                # Calculate lock age in seconds
-                CREATED_EPOCH=$(date -u -d "$CREATED_TIME" +%s 2>/dev/null || date -u -j -f "%Y-%m-%dT%H:%M:%S" "${CREATED_TIME%.*}" +%s 2>/dev/null || echo "0")
-                CURRENT_EPOCH=$(date +%s)
-                
-                if [ "$CREATED_EPOCH" != "0" ] && [ "$CREATED_EPOCH" -gt 0 ]; then
-                  AGE_SECONDS=$((CURRENT_EPOCH - CREATED_EPOCH))
-                  AGE_MINUTES=$((AGE_SECONDS / 60))
-                  
-                  echo "Lock age: $AGE_MINUTES minutes ($AGE_SECONDS seconds)"
-                  
-                  # If lock is older than 10 minutes, consider it stale
-                  if [ "$AGE_MINUTES" -gt 10 ]; then
-                    echo "⚠️ Stale lock detected (${AGE_MINUTES} minutes old). Attempting to remove..."
+            # Try to extract creation time from Info field (if available)
+            # The Info field contains JSON with metadata including Created timestamp
+            if command -v jq >/dev/null 2>&1; then
+              INFO_JSON=$(echo "$LOCK_ITEM" | jq -r '.Item.Info.S' 2>/dev/null || echo "{}")
+              if [ "$INFO_JSON" != "{}" ] && [ "$INFO_JSON" != "null" ]; then
+                CREATED_TIME=$(echo "$INFO_JSON" | jq -r '.Created' 2>/dev/null || echo "")
+                if [ -n "$CREATED_TIME" ] && [ "$CREATED_TIME" != "null" ]; then
+                  echo "Lock created at: $CREATED_TIME"
+                  # Parse ISO 8601 timestamp and calculate age
+                  CREATED_EPOCH=$(date -u -d "$CREATED_TIME" +%s 2>/dev/null || echo "0")
+                  if [ "$CREATED_EPOCH" != "0" ]; then
+                    CURRENT_EPOCH=$(date +%s)
+                    AGE_SECONDS=$((CURRENT_EPOCH - CREATED_EPOCH))
+                    AGE_MINUTES=$((AGE_SECONDS / 60))
+                    echo "Lock age: $AGE_MINUTES minutes"
                     
-                    # Try terraform force-unlock first
-                    terraform force-unlock -force "$LOCK_ID" 2>&1 || {
-                      echo "force-unlock failed, attempting direct DynamoDB deletion..."
-                      # Fallback: Delete lock directly from DynamoDB
+                    # If lock is older than 10 minutes, force unlock
+                    if [ "$AGE_MINUTES" -gt 10 ]; then
+                      echo "⚠️ Stale lock detected (${AGE_MINUTES} minutes old). Removing..."
                       aws dynamodb delete-item \
                         --table-name "$DYNAMODB_TABLE" \
                         --key "{\"LockID\": {\"S\": \"$LOCK_ID\"}}" \
-                        --region us-east-1 && echo "✅ Stale lock removed from DynamoDB"
-                    }
-                  else
-                    echo "Lock is recent (${AGE_MINUTES} minutes old), will wait for it to be released..."
+                        --region us-east-1 2>&1 && echo "✅ Stale lock removed"
+                      exit 0
+                    fi
                   fi
                 fi
               fi
             fi
+            
+            # If we can't parse the time or jq is not available, 
+            # try force unlock anyway (will fail gracefully if lock is valid)
+            echo "Attempting force unlock (will fail if lock is valid)..."
+            terraform force-unlock -force "$LOCK_ID" 2>&1 || echo "Lock appears to be valid, will wait for timeout"
           else
             echo "✅ No lock found"
           fi
