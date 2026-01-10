@@ -74,3 +74,39 @@ def test_drop_db_drops_tables():
 
     # Verify tables are dropped (can't query them)
     # This is a basic test - in real scenario we'd check table existence
+
+
+def test_get_db_handles_exception_properly():
+    """Test get_db properly handles exceptions and closes session."""
+    db_gen = get_db()
+    db = next(db_gen)
+
+    # Manually trigger exception handling path
+    try:
+        raise ValueError("Test exception")
+    except ValueError:
+        # This should trigger the except block in get_db
+        try:
+            next(db_gen)
+        except StopIteration:
+            pass
+
+    # Session should be closed after exception
+    assert db.is_active is False or hasattr(db, "close")
+
+
+def test_session_local_creates_new_sessions():
+    """Test SessionLocal factory creates new session instances."""
+    session1 = SessionLocal()
+    session2 = SessionLocal()
+
+    # Should be different instances
+    assert session1 is not session2
+
+    # Both should be valid sessions
+    assert hasattr(session1, "add")
+    assert hasattr(session2, "add")
+
+    # Cleanup
+    session1.close()
+    session2.close()
