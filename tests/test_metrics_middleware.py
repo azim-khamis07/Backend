@@ -44,4 +44,3 @@ def test_normalize_path_nested():
     path = "/api/v1/users/42/categories/99"
     normalized = MetricsMiddleware._normalize_path(path)
     assert normalized == "/api/v1/users/{id}/categories/{id}"
-

@@ -79,4 +79,3 @@ def test_paginated_response_with_more():
     assert len(response.items) == 2
     assert response.has_more is True
     assert response.next_cursor == "next"
-

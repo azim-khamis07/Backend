@@ -111,4 +111,3 @@ def test_metrics_registry_contains_all_counters():
     assert "http_requests_total" in metric_names or any(
         "http_requests_total" in str(name) for name in metric_names
     )
-

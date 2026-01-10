@@ -87,4 +87,3 @@ def test_to_isoformat_with_timezone():
     assert isinstance(result, str)
     # Should be converted to UTC
     assert "2026-01-01" in result
-
