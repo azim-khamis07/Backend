@@ -20,14 +20,14 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy only installed packages from builder
-COPY --from=builder /root/.local /root/.local
-
 # Install runtime system dependencies
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Copy only installed packages from builder to a location accessible by appuser
+COPY --from=builder /root/.local /usr/local
 
 # Copy application code
 COPY . .
@@ -36,8 +36,7 @@ COPY . .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Add user's local bin to PATH
-ENV PATH=/root/.local/bin:$PATH
+# Python will automatically look in /usr/local/lib/python3.12/site-packages
 
 # Expose port
 EXPOSE 8000
